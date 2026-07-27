@@ -111,6 +111,9 @@
     <ClCompile Include="src\game_states\OverworldState.cpp">
       <Filter>Source Files\game_states</Filter>
     </ClCompile>
+    <ClCompile Include="src\game_states\levels\ParallaxBackground.cpp">
+      <Filter>Source Files\game_states\levels</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\entities\Entity.h">
@@ -160,6 +163,9 @@
     </ClInclude>
     <ClInclude Include="src\game_states\OverworldState.h">
       <Filter>Source Files\game_states</Filter>
+    </ClInclude>
+    <ClInclude Include="src\game_states\levels\ParallaxBackground.h">
+      <Filter>Source Files\game_states\levels</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

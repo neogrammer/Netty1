@@ -11,6 +11,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <vector>
+#include <game_states/levels/ParallaxBackground.h>
 
 class PlayState : public IGameState {
 public:
@@ -23,9 +24,12 @@ public:
     void update(sf::Time dt) override;
     void draw(sf::RenderWindow& window) override;
 
+	
 private:
     sf::RenderWindow* window;
     ClientContext& context;
+    ParallaxBackground background;  
+    bool anchorSet = false;
 
 
     const std::unordered_map<EntityType, AnimationSet*>& entityAnimSets;

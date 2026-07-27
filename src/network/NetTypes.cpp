@@ -65,13 +65,13 @@ sf::Packet& operator>>(sf::Packet& p, DestroyMessage& msg) {
 
 // ---------- FrameSnapshot ----------
 sf::Packet& operator<<(sf::Packet& p, const FrameSnapshot& snap) {
-    p << snap.frameNumber;
+    p << snap.frameNumber << snap.camX_quant << snap.camY_quant;
     p << static_cast<uint32_t>(snap.entities.size());
     for (const auto& e : snap.entities) p << e;
     return p;
 }
 sf::Packet& operator>>(sf::Packet& p, FrameSnapshot& snap) {
-    p >> snap.frameNumber;
+    p >> snap.frameNumber >> snap.camX_quant >> snap.camY_quant;
     uint32_t count; p >> count;
     snap.entities.resize(count);
     for (auto& e : snap.entities) p >> e;

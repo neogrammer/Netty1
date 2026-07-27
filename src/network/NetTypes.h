@@ -86,6 +86,8 @@ struct AssignPlayerMessage {
 // Full frame state (unreliable)
 struct FrameSnapshot {
     uint32_t frameNumber;
+    int32_t camX_quant;      // NEW
+    int32_t camY_quant;      // NEW
     std::vector<EntitySnapshot> entities;
 };
 

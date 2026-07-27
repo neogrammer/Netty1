@@ -148,6 +148,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\entities\Entity.cpp" />
     <ClCompile Include="src\game_states\levels\Level.cpp" />
+    <ClCompile Include="src\game_states\levels\ParallaxBackground.cpp" />
     <ClCompile Include="src\game_states\OverworldState.cpp" />
     <ClCompile Include="src\game_states\PlayState.cpp" />
     <ClCompile Include="src\game_states\TitleState.cpp" />
@@ -163,6 +164,7 @@
     <ClInclude Include="src\entities\Entity.h" />
     <ClInclude Include="src\game_states\GameState.h" />
     <ClInclude Include="src\game_states\levels\Level.h" />
+    <ClInclude Include="src\game_states\levels\ParallaxBackground.h" />
     <ClInclude Include="src\game_states\OverworldState.h" />
     <ClInclude Include="src\game_states\PlayState.h" />
     <ClInclude Include="src\game_states\TitleState.h" />
