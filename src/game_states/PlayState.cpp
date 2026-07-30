@@ -238,6 +238,8 @@ void PlayState::enter() {
     background.setGroundLayer(levelRes, (int)Cfg::Textures::L1_Foreground, groundPoly, true);
     
 
+    currCameraCenter = { 100.f, 450.f };
+    prevCameraCenter = currCameraCenter;
     snapState.hasPrev = false;
     interpClock.restart();
     printf("[PlayState] Entered level %d\n", context.currentLevel);

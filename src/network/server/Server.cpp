@@ -613,6 +613,7 @@ struct PlayerSlot {
     bool ready = false;
     int dir = 0;
     int facing = 1;
+    float camXSmooth = 0.f;
     std::unordered_set<uint32_t> knownEntities;
 };
 
@@ -692,6 +693,7 @@ static void udp_game_server(sf::TcpListener& listener,
             slots[i].knownEntities.insert(playerEntityId[0]);
             slots[i].knownEntities.insert(playerEntityId[1]);
             slots[i].camX = (i == 0) ? 100.f : 700.f;
+            slots[i].camXSmooth = slots[i].camX;
         }
         printf("[Server] World initialized.\n");
         };
@@ -900,12 +902,14 @@ static void udp_game_server(sf::TcpListener& listener,
                     const float DEAD_ZONE = SCREEN_W / 3.f;      // center third = 533.33
                     const float LEFT_WORLD = 0.f;
                     const float RIGHT_WORLD = 18000.f;
+                   
 
                     if (slots[i].camX == 0.f)
                         slots[i].camX = player->x;
 
                     float camX = slots[i].camX;
                     float playerX = player->x;
+
 
                     // The dead-zone boundaries in world space
                     float deadLeft = camX - SCREEN_W / 2.f + DEAD_ZONE;
@@ -948,7 +952,17 @@ static void udp_game_server(sf::TcpListener& listener,
 
                     FrameSnapshot snap;
                     snap.frameNumber = serverTick;
-                    snap.camX_quant = quantise(camX);
+                    
+                    // Smooth the camera towards the target
+                    const float CAM_SMOOTH = 0.15f;   // adjust for responsiveness (0.1–0.3)
+                    slots[i].camXSmooth += (camX - slots[i].camXSmooth) * CAM_SMOOTH;
+
+                    // Quantise the smoothed value for the snapshot
+                    snap.camX_quant = quantise(slots[i].camXSmooth);
+                    
+                    //snap.camX_quant = quantise(camX);
+                    
+
                     snap.camY_quant = quantise(0.f);
                     for (auto id : known) {
                         auto it = level.entityIndex.find(id);
