@@ -128,6 +128,7 @@ void ParallaxBackground::setGroundLayer(SceneResources& res, int textureId,
         throw std::runtime_error("Ground layer texture not loaded");
     setLayerTexture(groundLayer, res.textures.get(textureId), 1.0f, tileX);
     walkablePolygon = walkablePoly;
+    setSpawnX(0.0f);
 }
 
 bool ParallaxBackground::addForegroundLayer(SceneResources& res, int textureId,
@@ -225,21 +226,36 @@ void ParallaxBackground::drawLayer(sf::RenderWindow& window, Layer& layer,
 
 void ParallaxBackground::draw(sf::RenderWindow& window, const sf::Vector2f& cameraOffset) {
    
+    //auto drawOne = [&](Layer& l, const sf::Vector2f& extra = { 0.f, 0.f }) {
+    //    if (!l.sprite) return;
+    //    float f = l.parallaxFactor;
+    //    // Shift camera offset by spawnX so world x=0 aligns with the spawn point
+    //    sf::Vector2f shiftedOffset = cameraOffset - sf::Vector2f(spawnX, 0.f);
+    //    sf::Vector2f pos = extra - shiftedOffset * f;
+    //    if (l.tileX) {
+    //        sf::Vector2u ts = l.sprite->getTexture().getSize();
+    //        l.sprite->setTextureRect(sf::IntRect({ 0,0 }, { int(ts.x * TILE_COUNT), int(ts.y) }));
+    //        pos.x = -fmod(shiftedOffset.x * f, (float)ts.x);
+    //        pos.y = extra.y - shiftedOffset.y * f;
+    //    }
+    //    l.sprite->setPosition(pos);
+    //    window.draw(*l.sprite);
+    //    };
+
     auto drawOne = [&](Layer& l, const sf::Vector2f& extra = { 0.f, 0.f }) {
         if (!l.sprite) return;
         float f = l.parallaxFactor;
-        // Shift camera offset by spawnX so world x=0 aligns with the spawn point
-        sf::Vector2f shiftedOffset = cameraOffset - sf::Vector2f(spawnX, 0.f);
-        sf::Vector2f pos = extra - shiftedOffset * f;
+        sf::Vector2f pos = extra - cameraOffset * f;
         if (l.tileX) {
             sf::Vector2u ts = l.sprite->getTexture().getSize();
             l.sprite->setTextureRect(sf::IntRect({ 0,0 }, { int(ts.x * TILE_COUNT), int(ts.y) }));
-            pos.x = -fmod(shiftedOffset.x * f, (float)ts.x);
-            pos.y = extra.y - shiftedOffset.y * f;
+            pos.x = -fmod(cameraOffset.x * f, (float)ts.x);
+            pos.y = extra.y - cameraOffset.y * f;
         }
         l.sprite->setPosition(pos);
         window.draw(*l.sprite);
         };
+
 
     // Far
     drawOne(farLayer);
