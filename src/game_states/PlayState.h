@@ -30,7 +30,8 @@ private:
     ClientContext& context;
     ParallaxBackground background;  
     bool anchorSet = false;
-
+    sf::Vector2f prevCameraCenter{ 0.f, 450.f };
+    sf::Vector2f currCameraCenter{ 0.f, 450.f };
 
     const std::unordered_map<EntityType, AnimationSet*>& entityAnimSets;
     SceneResources levelRes;

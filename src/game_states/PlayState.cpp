@@ -272,12 +272,17 @@ void PlayState::update(sf::Time dt) {
     context.pendingDestroys.clear();
 
     // Process snapshot if new one arrived
+// Process snapshot if new one arrived
     if (context.hasSnapshot) {
         snapState.prev = std::move(snapState.curr);
         context.latestSnapshot >> snapState.curr;
         snapState.lastSnapTime = interpClock.getElapsedTime();
         snapState.hasPrev = true;
         context.hasSnapshot = false;
+
+        // Update camera center AFTER deserializing the new snapshot
+        prevCameraCenter = currCameraCenter;
+        currCameraCenter = { unquantise(snapState.curr.camX_quant), 450.f };
     }
 
     // Interpolation
@@ -297,20 +302,28 @@ void PlayState::draw(sf::RenderWindow& window) {
     window.clear();
 
     // Camera from snapshot
-    sf::Vector2f cameraCenter;
-    if (snapState.hasPrev) {
-        cameraCenter = { unquantise(snapState.curr.camX_quant),
-                         450.f };
-    }
-    else {
-        if (context.myEntityId != 0xFFFFFFFF) {
-            auto it = entities.find(context.myEntityId);
-            if (it != entities.end())
-                cameraCenter = { it->second.x, 450.f };
-        }
-    }
+    //sf::Vector2f cameraCenter;
+    //if (snapState.hasPrev) {
+    //    cameraCenter = { unquantise(snapState.curr.camX_quant),
+    //                     450.f };
+    //}
+    //else {
+    //    if (context.myEntityId != 0xFFFFFFFF) {
+    //        auto it = entities.find(context.myEntityId);
+    //        if (it != entities.end())
+    //            cameraCenter = { it->second.x, 450.f };
+    //    }
+    //}
    
-
+    // Smooth camera
+    sf::Vector2f cameraCenter = currCameraCenter;
+    if (snapState.hasPrev) {
+        // Use the same t as entity interpolation
+        sf::Time now = interpClock.getElapsedTime();
+        float tCam = ((now - snapState.lastSnapTime).asSeconds()) / tickDuration.asSeconds();
+        tCam = std::min(tCam, 1.0f);
+        cameraCenter = prevCameraCenter + (currCameraCenter - prevCameraCenter) * tCam;
+    }
     sf::Vector2f cameraOffset = cameraCenter - sf::Vector2f(800.f, 450.f);
     background.draw(window, cameraOffset);
 

@@ -224,22 +224,7 @@ void ParallaxBackground::drawLayer(sf::RenderWindow& window, Layer& layer,
 //}
 
 void ParallaxBackground::draw(sf::RenderWindow& window, const sf::Vector2f& cameraOffset) {
-    // Helper lambda
-    //auto drawOne = [&](Layer& l, const sf::Vector2f& extra = { 0.f, 0.f }) {
-    //    if (!l.sprite) return;
-    //    float f = l.parallaxFactor;
-    //    sf::Vector2f pos = extra - cameraOffset * f;
-    //    if (l.tileX) {
-    //        sf::Vector2u ts = l.sprite->getTexture().getSize();
-    //        l.sprite->setTextureRect(sf::IntRect({ 0,0 }, { int(ts.x * TILE_COUNT), int(ts.y) }));
-    //        pos.x = -fmod(cameraOffset.x * f, (float)ts.x);
-    //        pos.y = extra.y - cameraOffset.y * f;
-    //    }
-    //    l.sprite->setPosition(pos);
-
-    //    window.draw(*l.sprite);
-    //    };
-
+   
     auto drawOne = [&](Layer& l, const sf::Vector2f& extra = { 0.f, 0.f }) {
         if (!l.sprite) return;
         float f = l.parallaxFactor;
