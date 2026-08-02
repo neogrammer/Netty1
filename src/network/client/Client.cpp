@@ -1,3 +1,4 @@
+// Client.cpp
 #include "Client.h"
 #include <network/NetworkCommon.h>
 #include <network/NetTypes.h>
@@ -16,7 +17,7 @@
 #include <res/Cfg.h>
 
 void run_client(int server_tcp_port) {
-    const sf::IpAddress server_ip(24, 35, 13, 61);  // change to real IP
+    const sf::IpAddress server_ip(127, 0, 0, 1);  //24, 35, 13, 61);  // change to real IP
 
     // ---------- TCP handshake ----------
     unsigned short my_udp_port;

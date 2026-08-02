@@ -44,6 +44,7 @@ private:
         FrameSnapshot curr;
         sf::Time      lastSnapTime;
         bool          hasPrev = false;
+		float interpT = 0.f;  // interpolation factor for camera and entities
     } snapState;
     sf::Clock interpClock;
     const sf::Time tickDuration = sf::seconds(1.f / 60.f);
