@@ -15,6 +15,7 @@
 #include <entities/animation/AnimationSet.h>
 #include <res/SceneResources.h>
 #include <res/Cfg.h>
+#include <network/client/ClientNetworkProcessor.h>
 
 void run_client(int server_tcp_port) {
     const sf::IpAddress server_ip(127, 0, 0, 1);  //24, 35, 13, 61);  // change to real IP
@@ -63,7 +64,7 @@ void run_client(int server_tcp_port) {
     printf("[Client %d] Starting main loop, Animation setup correctly...\n", player_id);
 
     // ---------- Client context ----------
-    ClientContext ctx{};
+    ClientContext ctx{ .serverIp = server_ip };
     ctx.udpSocket = &udp_socket;
     ctx.tcpSocket = &tcp_socket;
     ctx.serverIp = server_ip;
@@ -86,6 +87,8 @@ void run_client(int server_tcp_port) {
     gsm.registerState("play", std::make_unique<PlayState>(&window, ctx, entityAnimSets));
     gsm.switchTo("title");   // start on title screen
 
+    ClientNetworkProcessor network(ctx);
+
     sf::Clock clock;
     while (window.isOpen()) {
         // Process window events
@@ -96,73 +99,8 @@ void run_client(int server_tcp_port) {
                 gsm.handleEvent(*event);
         }
 
-        // ---- TCP processing (centralised) ----
-        sf::Packet tcpPacket;
-        while (tcp_socket.receive(tcpPacket) == sf::Socket::Status::Done) {
-            NetMsgType type;
-            tcpPacket >> type;
-            if (type == NetMsgType::AssignPlayerEntity) {
-                AssignPlayerMessage msg;
-                tcpPacket >> msg;
-                ctx.myEntityId = msg.entityId;
-                printf("[Client %d] Assigned player entity %u\n", player_id, msg.entityId);
-            }
-            else if (type == NetMsgType::LoadZone) {
-                LoadZoneMessage msg;
-                tcpPacket >> msg;
-                ctx.currentZone = msg.zoneNumber;
-				ctx.currentLevel = -1;  // reset level when loading a new zone
-                // Load zone assets immediately (will be used by OverworldState)
-                // We need a SceneResources to load here. We'll store it in a global or in context.
-                // For simplicity, we'll let OverworldState load on enter; but to avoid delay,
-                // we can pre-load here. We'll add a SceneResources* to context temporarily.
-                printf("[Client %d] Loading zone %d\n", player_id, msg.zoneNumber);
-                // We'll call loadForScene later inside OverworldState::enter(), because we need the instance.
-                // Just store the zone number; OverworldState will load assets when entered.
-                gsm.switchTo("overworld");
-            }
-            else if (type == NetMsgType::LoadLevel) {
-                LoadLevelMessage msg;
-                tcpPacket >> msg;
-                ctx.currentLevel = msg.levelNumber;
-				ctx.currentZone = -1;  // reset zone when loading a level
-                printf("[Client %d] Loading level %d\n", player_id, msg.levelNumber);
-                // PlayState will load assets on enter
-                gsm.switchTo("play");
-            }
-            else if (type == NetMsgType::SpawnEntity) {
-                SpawnMessage msg;
-                tcpPacket >> msg;
-                // We need to store the spawned entity in the current state's entities map.
-                // Since processing is central, we delegate to the active state via a virtual method.
-                // Let's add a `handleSpawn(msg)` to IGameState.
-                // But to keep it simple, we'll just buffer the spawns in a queue in ClientContext,
-                // and each state processes them in its update.
-                // Quick solution: add a vector<SpawnMessage> to ClientContext.
-                // But we'll implement a cleaner method: make IGameState have `processSpawn(msg)`.
-                // For now, we'll add a `pendingSpawns` queue in context.
-                ctx.pendingSpawns.push_back(msg);   // requires #include <vector>
-            }
-            else if (type == NetMsgType::DestroyEntity) {
-                DestroyMessage msg;
-                tcpPacket >> msg;
-                ctx.pendingDestroys.push_back(msg);
-            }
-        }
+		network.processIncoming();  // handles both TCP and UDP messages
 
-        // ---- UDP processing (centralised) ----
-        // We'll process snapshots centrally and push them to the current state.
-        sf::Packet udpPacket;
-        std::optional<sf::IpAddress> sender;
-        unsigned short senderPort;
-        while (udp_socket.receive(udpPacket, sender, senderPort) == sf::Socket::Status::Done) {
-            NetMsgType type;
-            udpPacket >> type;
-            if (type == NetMsgType::FrameSnapshot) {
-                ctx.latestSnapshot = std::move(udpPacket);   // store raw packet for state to deserialize later
-                ctx.hasSnapshot = true;
-            }
-        }
 
         // ---- Input sending (centralised) ----
         // We'll read keyboard and send movement input here, regardless of state.
@@ -173,18 +111,9 @@ void run_client(int server_tcp_port) {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) ||
                 sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) input += 'R';
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Enter)) input += 'E'; // execute action
-            if (!input.empty()) {
-                udp_socket.send(input.c_str(), input.size(), server_ip, server_udp_port);
-                // Client-side prediction can be done in states using context.myEntityId
-                // Client‑side prediction: move own player immediately
-                if (ctx.myEntityId != 0xFFFFFFFF) {
-                    // We need access to the current state's entity map.
-                    // Since we're in the central loop, we can use the GameStateManager to get the current state.
-                    // A simpler way: move the entity directly in the state's update using the input.
-                    // We'll store the input string in context and let the state apply prediction.
-                    ctx.latestInput = input;   // new field in ClientContext
-                }
-            }
+
+            network.sendInput(input);
+            ctx.latestInput = input;
         }
 
         // Update & draw current state

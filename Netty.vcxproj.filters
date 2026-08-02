@@ -67,6 +67,9 @@
     <Filter Include="Resource Files\assets\textures\zones">
       <UniqueIdentifier>{fd9ec0c5-bd86-4d86-87c3-8e59367d69d1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\network\trans">
+      <UniqueIdentifier>{14e1d59f-79fd-41b7-8e57-2ca5cf32d46d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -113,6 +116,15 @@
     </ClCompile>
     <ClCompile Include="src\game_states\levels\ParallaxBackground.cpp">
       <Filter>Source Files\game_states\levels</Filter>
+    </ClCompile>
+    <ClCompile Include="src\network\trans\SnapshotInterpolator.cpp">
+      <Filter>Source Files\network\trans</Filter>
+    </ClCompile>
+    <ClCompile Include="src\network\server\ServerGameLoop.cpp">
+      <Filter>Source Files\network\server</Filter>
+    </ClCompile>
+    <ClCompile Include="src\network\client\ClientNetworkProcessor.cpp">
+      <Filter>Source Files\network\client</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -166,6 +178,15 @@
     </ClInclude>
     <ClInclude Include="src\game_states\levels\ParallaxBackground.h">
       <Filter>Source Files\game_states\levels</Filter>
+    </ClInclude>
+    <ClInclude Include="src\network\trans\SnapshotInterpolator.h">
+      <Filter>Source Files\network\trans</Filter>
+    </ClInclude>
+    <ClInclude Include="src\network\server\ServerGameLoop.h">
+      <Filter>Source Files\network\server</Filter>
+    </ClInclude>
+    <ClInclude Include="src\network\client\ClientNetworkProcessor.h">
+      <Filter>Source Files\network\client</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

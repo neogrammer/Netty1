@@ -154,9 +154,12 @@
     <ClCompile Include="src\game_states\TitleState.cpp" />
     <ClCompile Include="src\mgmt\GameStateManager.cpp" />
     <ClCompile Include="src\network\client\Client.cpp" />
+    <ClCompile Include="src\network\client\ClientNetworkProcessor.cpp" />
     <ClCompile Include="src\network\NetTypes.cpp" />
     <ClCompile Include="src\network\NetworkCommon.cpp" />
     <ClCompile Include="src\network\server\Server.cpp" />
+    <ClCompile Include="src\network\server\ServerGameLoop.cpp" />
+    <ClCompile Include="src\network\trans\SnapshotInterpolator.cpp" />
     <ClCompile Include="src\res\Cfg.cpp" />
     <ClCompile Include="src\res\SceneResources.cpp" />
   </ItemGroup>
@@ -171,9 +174,12 @@
     <ClInclude Include="src\mgmt\GameStateManager.h" />
     <ClInclude Include="src\network\client\Client.h" />
     <ClInclude Include="src\network\client\ClientContext.h" />
+    <ClInclude Include="src\network\client\ClientNetworkProcessor.h" />
     <ClInclude Include="src\network\NetTypes.h" />
     <ClInclude Include="src\network\NetworkCommon.h" />
     <ClInclude Include="src\network\server\Server.h" />
+    <ClInclude Include="src\network\server\ServerGameLoop.h" />
+    <ClInclude Include="src\network\trans\SnapshotInterpolator.h" />
     <ClInclude Include="src\res\Cfg.h" />
     <ClInclude Include="src\res\SceneResources.h" />
     <ClInclude Include="src\res\ResourceManager.h" />

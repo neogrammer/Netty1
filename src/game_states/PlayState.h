@@ -12,6 +12,10 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <game_states/levels/ParallaxBackground.h>
+#include <network/trans/SnapshotInterpolator.h>
+
+#include <res/SceneResources.h>
+#include <entities/animation/AnimationSet.h>
 
 class PlayState : public IGameState {
 public:
@@ -26,6 +30,7 @@ public:
 
 	
 private:
+    SnapshotInterpolator interpolator;
     sf::RenderWindow* window;
     ClientContext& context;
     ParallaxBackground background;  
@@ -37,18 +42,9 @@ private:
     SceneResources levelRes;
     // Entity state
     std::unordered_map<uint32_t, ClientEntity> entities;
-
-    // snapshot interpolation (unchanged)
-    struct {
-        FrameSnapshot prev;
-        FrameSnapshot curr;
-        sf::Time      lastSnapTime;
-        bool          hasPrev = false;
-		float interpT = 0.f;  // interpolation factor for camera and entities
-    } snapState;
-    sf::Clock interpClock;
+  
     const sf::Time tickDuration = sf::seconds(1.f / 60.f);
-    float currentRenderTick = 0.f;
+
 
     // existing helpers (slightly modified to use context.myEntityId)
     void interpolateEntities(float renderTick);
