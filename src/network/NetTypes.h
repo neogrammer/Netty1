@@ -32,6 +32,13 @@ enum class EntityType : uint8_t {
     NPC = 3,
 };
 
+struct Hitbox {
+    float offsetX = 0.f;
+    float offsetY = 0.f;
+    float width = 0.f;
+    float height = 0.f;
+};
+
 // Server-side entity (includes state needed for game logic)
 struct Entity {
     uint32_t id = 0;
@@ -39,6 +46,7 @@ struct Entity {
     float x = 0.f, y = 0.f;
     uint8_t animation = 0;
     uint32_t animStartTick = 0;
+    Hitbox hitbox;
 };
 
 // Snapshot entry sent in each frame (only dynamic data)
@@ -63,9 +71,21 @@ struct LoadZoneMessage {
 enum class AnimType : uint8_t {
     Idle = 0,
     Walk = 1,
-    Jump = 2,
-    Attack = 3,
+    Attack1 = 2,
+    Attack2 = 3,
+    Attack3 = 4,
+    JumpUp = 5,
+    JumpDown = 6,
+    Hit = 7,
+    Death = 8,
 };
+
+//enum class AnimType : uint8_t {
+//    Idle = 0,
+//    Walk = 1,
+//    Jump = 2,
+//    Attack = 3,
+//};
 
 // Sent once when an entity enters the client's world (reliable)
 struct SpawnMessage {

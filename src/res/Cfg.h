@@ -23,7 +23,8 @@ struct Cfg
 	enum class Textures : int {
 
 		// Global Textures
-		Player_Idle, Player_Walk,
+		//Player_Idle, Player_Walk,
+		Hero1_Sheet,
 		Level1Background, Level1Middle, 
 
 		// Level Textures

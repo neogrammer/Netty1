@@ -18,8 +18,11 @@ std::pair<bool, ClientEntity> createClientEntity(
 
     // Use the idle texture as the initial sprite texture
     auto texIt = ent.animSet->animMap.find(AnimType::Idle);
-    if (texIt != ent.animSet->animMap.end() && texIt->second)
+    if (texIt != ent.animSet->animMap.end() && texIt->second) {
         ent.sprite = std::make_unique<sf::Sprite>(*texIt->second);
+		//if (type == EntityType::Player)
+  //          ent.sprite->setScale({ 2.f,2.f });
+    }
 
     // Set the initial texture rect to the first idle frame (facing right)
     if (ent.animSet) {

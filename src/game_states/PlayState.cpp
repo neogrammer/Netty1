@@ -18,7 +18,7 @@ void PlayState::enter() {
     background.addMidLayer(levelRes, (int)Cfg::Textures::L1_BgNear, 0.4f, true);
     background.addForegroundLayer(levelRes, (int)Cfg::Textures::L1_Foreground, 1.3f, true);
     std::vector<sf::Vector2f> groundPoly = {
-        { 0, 702 }, { 4504, 702 }, { 4504, 798 }, { 0, 798 }
+        { 0, 702 }, { 18000, 702 }, { 18000, 798 }, { 0, 798 }
     };
     background.setGroundLayer(levelRes, (int)Cfg::Textures::L1_Ground, groundPoly, true);
     

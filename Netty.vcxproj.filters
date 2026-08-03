@@ -228,5 +228,11 @@
     <Image Include="assets\textures\levels\level1\L1_Ground.png">
       <Filter>Resource Files\assets\textures\levels\level1</Filter>
     </Image>
+    <Image Include="assets\textures\player\Hero1_Sheet.png">
+      <Filter>Resource Files\assets\textures\player</Filter>
+    </Image>
+    <Image Include="assets\textures\player\Hero1_Sheet_Big.png">
+      <Filter>Resource Files\assets\textures\player</Filter>
+    </Image>
   </ItemGroup>
 </Project>

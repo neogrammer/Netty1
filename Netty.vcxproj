@@ -199,6 +199,8 @@
     <Image Include="assets\textures\levels\level1\L1_Foreground.png" />
     <Image Include="assets\textures\levels\level1\L1_Ground.png" />
     <Image Include="assets\textures\none.png" />
+    <Image Include="assets\textures\player\Hero1_Sheet.png" />
+    <Image Include="assets\textures\player\Hero1_Sheet_Big.png" />
     <Image Include="assets\textures\player\idle.png" />
     <Image Include="assets\textures\player\walk.png" />
     <Image Include="assets\textures\zones\Zone1_Icons.png" />

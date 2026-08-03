@@ -45,7 +45,4 @@ private:
   
     const sf::Time tickDuration = sf::seconds(1.f / 60.f);
 
-
-    // existing helpers (slightly modified to use context.myEntityId)
-    void interpolateEntities(float renderTick);
 };
