@@ -27,7 +27,7 @@ struct Cfg
 		Level1Background, Level1Middle, 
 
 		// Level Textures
-		L1_Foreground, L1_BgMid_Far, L1_BgMid_Mid, L1_BgMid_Near, L1_BgFar,
+		L1_Foreground, L1_BgMid, L1_BgNear, L1_BgFar, L1_Ground,
 		
 		// Overworld textures
 		Zone1_Map, Zone1_Icons,

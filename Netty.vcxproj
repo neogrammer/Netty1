@@ -194,10 +194,10 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="assets\textures\levels\level1\L1_BgFar.png" />
-    <Image Include="assets\textures\levels\level1\L1_BgMid_Far.png" />
-    <Image Include="assets\textures\levels\level1\L1_BgMid_Mid.png" />
-    <Image Include="assets\textures\levels\level1\L1_BgMid_Near.png" />
+    <Image Include="assets\textures\levels\level1\L1_BgMid.png" />
+    <Image Include="assets\textures\levels\level1\L1_BgNear.png" />
     <Image Include="assets\textures\levels\level1\L1_Foreground.png" />
+    <Image Include="assets\textures\levels\level1\L1_Ground.png" />
     <Image Include="assets\textures\none.png" />
     <Image Include="assets\textures\player\idle.png" />
     <Image Include="assets\textures\player\walk.png" />

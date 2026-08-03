@@ -36,7 +36,8 @@ public:
     // Draw all layers in the correct order
     void draw(sf::RenderWindow& window, const sf::Vector2f& cameraOffset);
 
-    
+    void drawForeground(sf::RenderWindow& window, const sf::Vector2f& cameraOffset);
+
     void setSpawnX(float x) { spawnX = x; }
 private:
     Layer farLayer;

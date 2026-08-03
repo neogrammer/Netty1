@@ -198,21 +198,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="assets\textures\levels\level1\L1_BgFar.png">
-      <Filter>Resource Files\assets\textures\levels\level1</Filter>
-    </Image>
-    <Image Include="assets\textures\levels\level1\L1_BgMid_Far.png">
-      <Filter>Resource Files\assets\textures\levels\level1</Filter>
-    </Image>
-    <Image Include="assets\textures\levels\level1\L1_BgMid_Mid.png">
-      <Filter>Resource Files\assets\textures\levels\level1</Filter>
-    </Image>
-    <Image Include="assets\textures\levels\level1\L1_BgMid_Near.png">
-      <Filter>Resource Files\assets\textures\levels\level1</Filter>
-    </Image>
-    <Image Include="assets\textures\levels\level1\L1_Foreground.png">
-      <Filter>Resource Files\assets\textures\levels\level1</Filter>
-    </Image>
     <Image Include="assets\textures\player\idle.png">
       <Filter>Resource Files\assets\textures\player</Filter>
     </Image>
@@ -227,6 +212,21 @@
     </Image>
     <Image Include="assets\textures\none.png">
       <Filter>Resource Files\assets\textures</Filter>
+    </Image>
+    <Image Include="assets\textures\levels\level1\L1_BgFar.png">
+      <Filter>Resource Files\assets\textures\levels\level1</Filter>
+    </Image>
+    <Image Include="assets\textures\levels\level1\L1_BgMid.png">
+      <Filter>Resource Files\assets\textures\levels\level1</Filter>
+    </Image>
+    <Image Include="assets\textures\levels\level1\L1_BgNear.png">
+      <Filter>Resource Files\assets\textures\levels\level1</Filter>
+    </Image>
+    <Image Include="assets\textures\levels\level1\L1_Foreground.png">
+      <Filter>Resource Files\assets\textures\levels\level1</Filter>
+    </Image>
+    <Image Include="assets\textures\levels\level1\L1_Ground.png">
+      <Filter>Resource Files\assets\textures\levels\level1</Filter>
     </Image>
   </ItemGroup>
 </Project>

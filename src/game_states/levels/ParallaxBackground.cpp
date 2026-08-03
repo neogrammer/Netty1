@@ -64,7 +64,7 @@ void ParallaxBackground::drawLayer(sf::RenderWindow& window, Layer& layer,
         basePos.y = -cameraOffset.y * factor;
     }
 
-    layer.sprite->setPosition(basePos);
+    layer.sprite->setPosition({ basePos });
     window.draw(*layer.sprite);
 }
 
@@ -81,7 +81,7 @@ void ParallaxBackground::draw(sf::RenderWindow& window, const sf::Vector2f& came
             pos.x = -fmod(cameraOffset.x * f, (float)ts.x);
             pos.y = extra.y - cameraOffset.y * f;
         }
-        l.sprite->setPosition(pos);
+        l.sprite->setPosition({ pos });
         window.draw(*l.sprite);
         };
 
@@ -92,7 +92,28 @@ void ParallaxBackground::draw(sf::RenderWindow& window, const sf::Vector2f& came
     for (auto& l : midLayers) drawOne(l);
     // Ground – offset so its bottom edge sits at floorY
     //float groundTexH = (float)groundLayer.sprite->getTexture().getSize().y;
-    drawOne(groundLayer);//, { 0.f, floorY - groundTexH });
+   // drawOne(groundLayer);//, { 0.f, floorY - groundTexH });
+    drawOne(groundLayer);
+}
+
+
+
+void ParallaxBackground::drawForeground(sf::RenderWindow& window, const sf::Vector2f& cameraOffset) {
+
+    auto drawOne = [&](Layer& l, const sf::Vector2f& extra = { 0.f, 0.f }) {
+        if (!l.sprite) return;
+        float f = l.parallaxFactor;
+        sf::Vector2f pos = extra - cameraOffset * f;
+        if (l.tileX) {
+            sf::Vector2u ts = l.sprite->getTexture().getSize();
+            l.sprite->setTextureRect(sf::IntRect({ 0,0 }, { int(ts.x * TILE_COUNT), int(ts.y) }));
+            pos.x = -fmod(cameraOffset.x * f, (float)ts.x);
+            pos.y = extra.y - cameraOffset.y * f;
+        }
+        l.sprite->setPosition({ pos });
+        window.draw(*l.sprite);
+        };
     // Foreground
     for (auto& l : foregroundLayers) drawOne(l);
+
 }

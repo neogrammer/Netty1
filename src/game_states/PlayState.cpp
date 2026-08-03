@@ -13,15 +13,14 @@ PlayState::PlayState(sf::RenderWindow* win, ClientContext& ctx,
 void PlayState::enter() {
     levelRes.loadForScene(context.currentLevel, true);
 
-    background.setFarLayer(levelRes, (int)Cfg::Textures::L1_BgFar, 0.1f, true);
-    background.addMidLayer(levelRes, (int)Cfg::Textures::L1_BgMid_Far, 0.3f, true);
-    background.addMidLayer(levelRes, (int)Cfg::Textures::L1_BgMid_Mid, 0.5f, true);
-    background.addMidLayer(levelRes, (int)Cfg::Textures::L1_BgMid_Near, 0.7f, true);
-
+    background.setFarLayer(levelRes, (int)Cfg::Textures::L1_BgFar, 0.01f, true);
+    background.addMidLayer(levelRes, (int)Cfg::Textures::L1_BgMid, 0.05f, true);
+    background.addMidLayer(levelRes, (int)Cfg::Textures::L1_BgNear, 0.4f, true);
+    background.addForegroundLayer(levelRes, (int)Cfg::Textures::L1_Foreground, 1.3f, true);
     std::vector<sf::Vector2f> groundPoly = {
-        { 0, 600 }, { 18000, 600 }, { 18000, 900 }, { 0, 900 }
+        { 0, 702 }, { 4504, 702 }, { 4504, 798 }, { 0, 798 }
     };
-    background.setGroundLayer(levelRes, (int)Cfg::Textures::L1_Foreground, groundPoly, true);
+    background.setGroundLayer(levelRes, (int)Cfg::Textures::L1_Ground, groundPoly, true);
     
     printf("[PlayState] Entered level %d\n", context.currentLevel);
 }
@@ -128,6 +127,15 @@ void PlayState::draw(sf::RenderWindow& window) {
         ent.sprite->setPosition({ std::round(ent.x - cameraOffset.x), std::round(ent.y - cameraOffset.y) });
         window.draw(*ent.sprite);
     }
+    
+    // draw damage indicators and other dialog in game messages here
 
+
+	// after entities, draw foreground layers
+	background.drawForeground(window, cameraOffset);
+
+    // Now draw UI
+
+    // display the frame to the window context
     window.display();
 }
