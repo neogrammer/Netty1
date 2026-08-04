@@ -111,12 +111,11 @@ void run_client(int server_tcp_port) {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) ||
                 sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) input += 'R';
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up) ||
-                sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) input += 'U';      // jump
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::J)) {
-                input += '1';      // attack1
-				printf("[Client %d] Sending attack1 input\n", player_id);
-
-            }
+                sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) input += 'U';      // move up (into background)
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down) ||
+                sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) input += 'N';      // move down (toward foreground)
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space)) input += 'J';  // jump
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::J)) input += '1';      // attack1
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::K)) input += '2';      // attack2
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::L)) input += '3';      // attack3
 

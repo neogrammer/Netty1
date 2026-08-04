@@ -89,8 +89,8 @@ void ServerGameLoop::initializeWorld() {
         return e.id;
         };
 
-    playerEntityId[0] = spawn(100.f, 700.f, 0, EntityType::Player);
-    playerEntityId[1] = spawn(700.f, 700.f, 0, EntityType::Player);
+    playerEntityId[0] = spawn(100.f, 600.f, 0, EntityType::Player);
+    playerEntityId[1] = spawn(700.f, 600.f, 0, EntityType::Player);
 
     for (int i = 0; i < 2; ++i) {
         slots[i].knownEntities.insert(playerEntityId[0]);
@@ -320,6 +320,7 @@ void ServerGameLoop::processPlayerInput() {
 
         // Reset action flags for this player
         slots[playerIdx].dir = 0;
+        slots[playerIdx].vertDir = 0;
         slots[playerIdx].wantsAttack1 = false;
         slots[playerIdx].wantsAttack2 = false;
         slots[playerIdx].wantsAttack3 = false;
@@ -328,7 +329,9 @@ void ServerGameLoop::processPlayerInput() {
         // Parse input
         if (std::strchr(buf, 'L')) slots[playerIdx].dir = -1;
         if (std::strchr(buf, 'R')) slots[playerIdx].dir = 1;
-        if (std::strchr(buf, 'U')) slots[playerIdx].wantsJump = true;
+        if (std::strchr(buf, 'U')) slots[playerIdx].vertDir = -1;   // up (into background)
+        if (std::strchr(buf, 'N')) slots[playerIdx].vertDir = 1;    // down (toward foreground)
+        if (std::strchr(buf, 'J')) slots[playerIdx].wantsJump = true;
         if (std::strchr(buf, '1')) slots[playerIdx].wantsAttack1 = true;
         if (std::strchr(buf, '2')) slots[playerIdx].wantsAttack2 = true;
         if (std::strchr(buf, '3')) slots[playerIdx].wantsAttack3 = true;
@@ -338,6 +341,7 @@ void ServerGameLoop::processPlayerInput() {
     for (int i = 0; i < 2; ++i) {
         if (!receivedThisTick[i] && slots[i].connected) {
             slots[i].dir = 0;
+            slots[i].vertDir = 0;
             slots[i].wantsAttack1 = false;
             slots[i].wantsAttack2 = false;
             slots[i].wantsAttack3 = false;
@@ -468,7 +472,8 @@ void ServerGameLoop::tickGameLogic() {
                     desired = AnimType::JumpUp;
                     slot.isJumping = true;
                     slot.jumpStartTick = serverTick;
-                    printf("[Server] Player %d jump started\n", i);
+                    slot.jumpStartY = e.y;
+                    printf("[Server] Player %d jump started at Y=%.1f\n", i, e.y);
                 }
                 else if (slot.dir != 0)     desired = AnimType::Walk;
                 else if (slot.idleTicks >= 8) desired = AnimType::Idle;
@@ -487,25 +492,33 @@ void ServerGameLoop::tickGameLogic() {
             if (slot.dir != 0) slot.facing = (slot.dir > 0) ? 1 : 0;
 
             // Movement
-            bool canMove = (desired == AnimType::Idle || desired == AnimType::Walk);
-            bool canMoveInAir = (desired == AnimType::JumpUp || desired == AnimType::JumpDown);
-
-            if (canMove || canMoveInAir) {
+            bool canMove = (desired == AnimType::Idle || desired == AnimType::Walk ||
+                desired == AnimType::JumpUp || desired == AnimType::JumpDown);
+            if (canMove) {
                 e.x += slot.dir * PLAYER_SPEED * TICK_DURATION;
+
+                // Vertical movement (only when grounded)
+                if (!slot.isJumping) {
+                    e.y += slot.vertDir * PLAYER_SPEED * TICK_DURATION;
+                    if (e.y < 530.f) e.y = 530.f;
+                    if (e.y > 628.f) e.y = 628.f;
+                    if (slot.vertDir != 0) {
+                        printf("[Server] Player %d Y: %.1f (vertDir=%d)\n", i, e.y, slot.vertDir);
+                    }
+                }
             }
 
-            // Vertical movement during jump
+            // Vertical movement during jump 
             if (desired == AnimType::JumpUp) {
                 float jumpProgress = (float)(serverTick - slot.jumpStartTick) / JUMP_UP_DURATION;
-                // Parabolic arc: rise quickly then slow near apex
-                e.y = 750.f - 120.f * (1.f - (1.f - jumpProgress) * (1.f - jumpProgress));
+                e.y = slot.jumpStartY - 120.f * (1.f - (1.f - jumpProgress) * (1.f - jumpProgress));
             }
             else if (desired == AnimType::JumpDown) {
                 float fallProgress = (float)(serverTick - slot.jumpStartTick - JUMP_UP_DURATION) / JUMP_DOWN_DURATION;
-                e.y = 750.f - 120.f + 120.f * fallProgress * fallProgress;
+                e.y = slot.jumpStartY - 120.f + 120.f * fallProgress * fallProgress;
             }
             else if (!slot.isJumping) {
-                e.y = 750.f;  // grounded Y position
+                // Grounded Y is maintained by vertical movement above
             }
 
             // --- Dead-zone camera ---

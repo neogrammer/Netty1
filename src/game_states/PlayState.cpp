@@ -70,6 +70,10 @@ void PlayState::update(sf::Time dt) {
             if (interpolator.getEntityPosition(id, x, y)) {
                 ent.x = x;
                 ent.y = y;
+                if (id == context.myEntityId && ent.y != lastPrintedY) {
+                    printf("[Client] My entity Y: %.1f\n", ent.y);
+                    lastPrintedY = ent.y;
+                }
             }
             // Update animStartTick from snapshot
             if (auto* snapEnt = interpolator.findEntity(id)) {

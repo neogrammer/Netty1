@@ -20,10 +20,11 @@ struct PlayerSlot {
     bool ready = false;
     bool isJumping = false;
     uint32_t jumpStartTick = 0;
-
+    float jumpStartY = 750.f;
     std::unordered_set<uint32_t> knownEntities;
     uint32_t idleTicks = 0;
     int dir = 0;
+    int vertDir = 0;
     int facing = 1;
     bool wantsAttack1 = false;
     bool wantsAttack2 = false;
