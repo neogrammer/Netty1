@@ -18,7 +18,9 @@ struct PlayerSlot {
     bool connected = false;
     float camX = 0.f;
     bool ready = false;
-  
+    bool isJumping = false;
+    uint32_t jumpStartTick = 0;
+
     std::unordered_set<uint32_t> knownEntities;
     uint32_t idleTicks = 0;
     int dir = 0;
@@ -27,14 +29,23 @@ struct PlayerSlot {
     bool wantsAttack2 = false;
     bool wantsAttack3 = false;
     bool wantsJump = false;
-
     // Attack combo tracking
     AnimType currentAttack = AnimType::Idle;  // which attack animation is playing
+
+
 };
+
+
 
 enum class ServerPhase { Lobby, Playing, GameOver };
 
 class ServerGameLoop {
+    // Jump timing (in ticks at 60Hz)
+    static constexpr uint32_t JUMP_UP_DURATION = 18;   // rising phase (~300ms)
+    static constexpr uint32_t JUMP_DOWN_DURATION = 18;   // falling phase (~300ms)
+    static constexpr uint32_t JUMP_TOTAL_DURATION = JUMP_UP_DURATION + JUMP_DOWN_DURATION;
+
+
 public:
     ServerGameLoop(sf::TcpListener& listener,
         sf::TcpSocket tcpSockets[2],

@@ -8,6 +8,7 @@
 #include "AnimConfig.h"
 
 
+
 // ---------- Constructor ----------
 
 ServerGameLoop::ServerGameLoop(sf::TcpListener& lst,
@@ -381,7 +382,6 @@ void ServerGameLoop::processPlayerInput() {
 // ---------- Game Tick ----------
 
 void ServerGameLoop::tickGameLogic() {
-    
 
     // Update facing from input direction
     for (int i = 0; i < 2; ++i) {
@@ -406,18 +406,39 @@ void ServerGameLoop::tickGameLogic() {
             }
 
             // --- Determine animation ---
+            //
+            
             AnimType current = static_cast<AnimType>(e.animation);
+            
             bool inAttack = (current == AnimType::Attack1 ||
                 current == AnimType::Attack2 ||
                 current == AnimType::Attack3);
+            bool inJump = (current == AnimType::JumpUp || current == AnimType::JumpDown);
 
             // Check if current non-looping animation finished
             uint32_t elapsed = serverTick - e.animStartTick;
             bool animFinished = !animLoops(current) && elapsed >= animDurationTicks(current);
-
+            
             AnimType desired = current;  // default: stay in current
+            
+            // Jump phase timing
+            uint32_t jumpElapsed = serverTick - slot.jumpStartTick;
 
-            if (current == AnimType::Death) {
+            // --- Jump transition handling ---
+            if (slot.isJumping && current == AnimType::JumpUp && jumpElapsed >= JUMP_UP_DURATION) {
+                // Rising phase complete — switch to falling
+                desired = AnimType::JumpDown;
+            }
+            else if (slot.isJumping && current == AnimType::JumpDown && jumpElapsed >= JUMP_TOTAL_DURATION) {
+                // Full jump complete
+                desired = AnimType::Idle;
+                slot.isJumping = false;
+            }
+            else if (slot.isJumping) {
+                // Still in jump — keep current phase
+                desired = current;
+            }
+            else if (current == AnimType::Death) {
                 // dead — no changes
             }
             else if (animFinished && inAttack) {
@@ -428,23 +449,27 @@ void ServerGameLoop::tickGameLogic() {
                 else if (slot.wantsAttack3 && current == AnimType::Attack2) {
                     desired = AnimType::Attack3;
                 }
-                else if (slot.idleTicks >= 18) {
+                else if (slot.idleTicks >= 8) {
                     desired = AnimType::Idle;
                 }
-                else
-                {
+                else {
                     desired = AnimType::Walk;  // keep last known movement
                 }
             }
-            else if (!inAttack || animFinished) {
-                // Not attacking, or attack just finished with no combo
+            else if (!inAttack && !inJump) {
+                // Not in any special animation — process input
                 if (slot.wantsAttack1) {
                     desired = AnimType::Attack1;
                     printf("[Server] Player %d wants Attack1\n", i);
                 }
                 else if (slot.wantsAttack2) desired = AnimType::Attack2;
                 else if (slot.wantsAttack3) desired = AnimType::Attack3;
-                else if (slot.wantsJump)    desired = AnimType::JumpUp;
+                else if (slot.wantsJump) {
+                    desired = AnimType::JumpUp;
+                    slot.isJumping = true;
+                    slot.jumpStartTick = serverTick;
+                    printf("[Server] Player %d jump started\n", i);
+                }
                 else if (slot.dir != 0)     desired = AnimType::Walk;
                 else if (slot.idleTicks >= 8) desired = AnimType::Idle;
                 else                        desired = AnimType::Walk;  // keep moving
@@ -453,7 +478,7 @@ void ServerGameLoop::tickGameLogic() {
             if (desired != current) {
                 printf("[Server] Player %d anim change: %d -> %d (tick %u, idleTicks=%u)\n",
                     i, current, desired, serverTick, slot.idleTicks);
-				
+
                 e.animation = static_cast<uint8_t>(desired);
                 e.animStartTick = serverTick;
             }
@@ -461,13 +486,27 @@ void ServerGameLoop::tickGameLogic() {
             // Facing
             if (slot.dir != 0) slot.facing = (slot.dir > 0) ? 1 : 0;
 
-            // Movement — only during non-attack animations
-            bool canMove = (desired == AnimType::Idle || desired == AnimType::Walk ||
-                desired == AnimType::JumpUp || desired == AnimType::JumpDown);
-            if (canMove) {
+            // Movement
+            bool canMove = (desired == AnimType::Idle || desired == AnimType::Walk);
+            bool canMoveInAir = (desired == AnimType::JumpUp || desired == AnimType::JumpDown);
+
+            if (canMove || canMoveInAir) {
                 e.x += slot.dir * PLAYER_SPEED * TICK_DURATION;
             }
-      
+
+            // Vertical movement during jump
+            if (desired == AnimType::JumpUp) {
+                float jumpProgress = (float)(serverTick - slot.jumpStartTick) / JUMP_UP_DURATION;
+                // Parabolic arc: rise quickly then slow near apex
+                e.y = 750.f - 120.f * (1.f - (1.f - jumpProgress) * (1.f - jumpProgress));
+            }
+            else if (desired == AnimType::JumpDown) {
+                float fallProgress = (float)(serverTick - slot.jumpStartTick - JUMP_UP_DURATION) / JUMP_DOWN_DURATION;
+                e.y = 750.f - 120.f + 120.f * fallProgress * fallProgress;
+            }
+            else if (!slot.isJumping) {
+                e.y = 750.f;  // grounded Y position
+            }
 
             // --- Dead-zone camera ---
             float camX = slots[i].camX;
