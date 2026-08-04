@@ -5,6 +5,8 @@
 #include <SFML/System/Sleep.hpp>
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/System/Clock.hpp>
+#include "AnimConfig.h"
+
 
 // ---------- Constructor ----------
 
@@ -289,6 +291,8 @@ void ServerGameLoop::processPlayerInput() {
     std::optional<sf::IpAddress> senderIp;
     unsigned short senderPort;
 
+    bool receivedThisTick[2] = { false, false };   // <-- HERE, at top of method
+
     while (udpSocket.receive(buf, sizeof(buf) - 1, received, senderIp, senderPort)
         == sf::Socket::Status::Done) {
         buf[received] = '\0';
@@ -297,6 +301,8 @@ void ServerGameLoop::processPlayerInput() {
             : (senderPort == slots[1].udpPort) ? 1
             : -1;
         if (playerIdx < 0 || !slots[playerIdx].connected) continue;
+
+        receivedThisTick[playerIdx] = true;   
 
         if (std::strcmp(buf, "READY") == 0) {
             if (!slots[playerIdx].ready) {
@@ -311,14 +317,72 @@ void ServerGameLoop::processPlayerInput() {
             continue;
         }
 
+        // Reset action flags for this player
+        slots[playerIdx].dir = 0;
+        slots[playerIdx].wantsAttack1 = false;
+        slots[playerIdx].wantsAttack2 = false;
+        slots[playerIdx].wantsAttack3 = false;
+        slots[playerIdx].wantsJump = false;
+
+        // Parse input
         if (std::strchr(buf, 'L')) slots[playerIdx].dir = -1;
         if (std::strchr(buf, 'R')) slots[playerIdx].dir = 1;
+        if (std::strchr(buf, 'U')) slots[playerIdx].wantsJump = true;
+        if (std::strchr(buf, '1')) slots[playerIdx].wantsAttack1 = true;
+        if (std::strchr(buf, '2')) slots[playerIdx].wantsAttack2 = true;
+        if (std::strchr(buf, '3')) slots[playerIdx].wantsAttack3 = true;
+    }
+
+    // HERE, after the while loop — reset only players who didn't send a packet
+    for (int i = 0; i < 2; ++i) {
+        if (!receivedThisTick[i] && slots[i].connected) {
+            slots[i].dir = 0;
+            slots[i].wantsAttack1 = false;
+            slots[i].wantsAttack2 = false;
+            slots[i].wantsAttack3 = false;
+            slots[i].wantsJump = false;
+        }
     }
 }
+
+//void ServerGameLoop::processPlayerInput() {
+//    char buf[64];
+//    std::size_t received;
+//    std::optional<sf::IpAddress> senderIp;
+//    unsigned short senderPort;
+//
+//    while (udpSocket.receive(buf, sizeof(buf) - 1, received, senderIp, senderPort)
+//        == sf::Socket::Status::Done) {
+//        buf[received] = '\0';
+//
+//        int playerIdx = (senderPort == slots[0].udpPort) ? 0
+//            : (senderPort == slots[1].udpPort) ? 1
+//            : -1;
+//        if (playerIdx < 0 || !slots[playerIdx].connected) continue;
+//
+//        if (std::strcmp(buf, "READY") == 0) {
+//            if (!slots[playerIdx].ready) {
+//                slots[playerIdx].ready = true;
+//                printf("[Server] Player %d is ready – sending LoadLevel\n", playerIdx);
+//                LoadLevelMessage levelMsg{ 1 };
+//                sf::Packet p;
+//                p << NetMsgType::LoadLevel << levelMsg;
+//                if (slots[playerIdx].tcpSocket.send(p) != sf::Socket::Status::Done)
+//                    disconnectPlayer(playerIdx);
+//            }
+//            continue;
+//        }
+//
+//        if (std::strchr(buf, 'L')) slots[playerIdx].dir = -1;
+//        if (std::strchr(buf, 'R')) slots[playerIdx].dir = 1;
+//    }
+//}
 
 // ---------- Game Tick ----------
 
 void ServerGameLoop::tickGameLogic() {
+    
+
     // Update facing from input direction
     for (int i = 0; i < 2; ++i) {
         if (slots[i].dir != 0)
@@ -330,16 +394,80 @@ void ServerGameLoop::tickGameLogic() {
         for (int i = 0; i < 2; ++i) {
             if (e.id != playerEntityId[i]) continue;
 
-            // Apply movement
-            e.x += static_cast<float>(slots[i].dir * PLAYER_SPEED * TICK_DURATION);
+            auto& slot = slots[i];
 
-            // Update animation
-            uint8_t newAnim = (slots[i].dir == 0) ? 0 : 1;
-            if (newAnim != e.animation) {
-                e.animation = newAnim;
-                e.animStartTick = static_cast<uint32_t>(serverTick);
+            // Track idle time for grace period
+            if (slot.dir == 0 && !slot.wantsAttack1 && !slot.wantsAttack2 &&
+                !slot.wantsAttack3 && !slot.wantsJump) {
+                slot.idleTicks++;
             }
-            slots[i].dir = 0;
+            else {
+                slot.idleTicks = 0;
+            }
+
+            // --- Determine animation ---
+            AnimType current = static_cast<AnimType>(e.animation);
+            bool inAttack = (current == AnimType::Attack1 ||
+                current == AnimType::Attack2 ||
+                current == AnimType::Attack3);
+
+            // Check if current non-looping animation finished
+            uint32_t elapsed = serverTick - e.animStartTick;
+            bool animFinished = !animLoops(current) && elapsed >= animDurationTicks(current);
+
+            AnimType desired = current;  // default: stay in current
+
+            if (current == AnimType::Death) {
+                // dead — no changes
+            }
+            else if (animFinished && inAttack) {
+                // Attack ended — check for combo input
+                if (slot.wantsAttack2 && current == AnimType::Attack1) {
+                    desired = AnimType::Attack2;
+                }
+                else if (slot.wantsAttack3 && current == AnimType::Attack2) {
+                    desired = AnimType::Attack3;
+                }
+                else if (slot.idleTicks >= 18) {
+                    desired = AnimType::Idle;
+                }
+                else
+                {
+                    desired = AnimType::Walk;  // keep last known movement
+                }
+            }
+            else if (!inAttack || animFinished) {
+                // Not attacking, or attack just finished with no combo
+                if (slot.wantsAttack1) {
+                    desired = AnimType::Attack1;
+                    printf("[Server] Player %d wants Attack1\n", i);
+                }
+                else if (slot.wantsAttack2) desired = AnimType::Attack2;
+                else if (slot.wantsAttack3) desired = AnimType::Attack3;
+                else if (slot.wantsJump)    desired = AnimType::JumpUp;
+                else if (slot.dir != 0)     desired = AnimType::Walk;
+                else if (slot.idleTicks >= 8) desired = AnimType::Idle;
+                else                        desired = AnimType::Walk;  // keep moving
+            }
+
+            if (desired != current) {
+                printf("[Server] Player %d anim change: %d -> %d (tick %u, idleTicks=%u)\n",
+                    i, current, desired, serverTick, slot.idleTicks);
+				
+                e.animation = static_cast<uint8_t>(desired);
+                e.animStartTick = serverTick;
+            }
+
+            // Facing
+            if (slot.dir != 0) slot.facing = (slot.dir > 0) ? 1 : 0;
+
+            // Movement — only during non-attack animations
+            bool canMove = (desired == AnimType::Idle || desired == AnimType::Walk ||
+                desired == AnimType::JumpUp || desired == AnimType::JumpDown);
+            if (canMove) {
+                e.x += slot.dir * PLAYER_SPEED * TICK_DURATION;
+            }
+      
 
             // --- Dead-zone camera ---
             float camX = slots[i].camX;

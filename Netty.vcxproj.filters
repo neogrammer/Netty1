@@ -188,6 +188,9 @@
     <ClInclude Include="src\network\client\ClientNetworkProcessor.h">
       <Filter>Source Files\network\client</Filter>
     </ClInclude>
+    <ClInclude Include="src\network\server\AnimConfig.h">
+      <Filter>Source Files\network\server</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\res\tpl\ResourceManager.tpl">

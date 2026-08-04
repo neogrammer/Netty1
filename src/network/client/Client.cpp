@@ -110,7 +110,15 @@ void run_client(int server_tcp_port) {
                 sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) input += 'L';
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) ||
                 sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) input += 'R';
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Enter)) input += 'E'; // execute action
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up) ||
+                sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) input += 'U';      // jump
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::J)) {
+                input += '1';      // attack1
+				printf("[Client %d] Sending attack1 input\n", player_id);
+
+            }
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::K)) input += '2';      // attack2
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::L)) input += '3';      // attack3
 
             network.sendInput(input);
             ctx.latestInput = input;

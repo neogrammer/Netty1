@@ -18,9 +18,18 @@ struct PlayerSlot {
     bool connected = false;
     float camX = 0.f;
     bool ready = false;
+  
+    std::unordered_set<uint32_t> knownEntities;
+    uint32_t idleTicks = 0;
     int dir = 0;
     int facing = 1;
-    std::unordered_set<uint32_t> knownEntities;
+    bool wantsAttack1 = false;
+    bool wantsAttack2 = false;
+    bool wantsAttack3 = false;
+    bool wantsJump = false;
+
+    // Attack combo tracking
+    AnimType currentAttack = AnimType::Idle;  // which attack animation is playing
 };
 
 enum class ServerPhase { Lobby, Playing, GameOver };

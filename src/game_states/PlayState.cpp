@@ -73,7 +73,8 @@ void PlayState::update(sf::Time dt) {
             }
             // Update animStartTick from snapshot
             if (auto* snapEnt = interpolator.findEntity(id)) {
-                ent.animStartTick = snapEnt->animStartTick;
+                ent.animStartTick = snapEnt->animStartTick; 
+                ent.currentAnim = static_cast<AnimType>(snapEnt->animation);
             }
         }
     }
