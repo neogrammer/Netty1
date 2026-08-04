@@ -56,6 +56,7 @@ struct EntitySnapshot {
     uint8_t animation;
     uint32_t animStartTick;       // client uses this to compute animation frame
     uint8_t flags;                // e.g., bit0 = facing right
+    int16_t health;
 };
 
 struct LoadLevelMessage {
@@ -80,12 +81,15 @@ enum class AnimType : uint8_t {
     Death = 8,
 };
 
-//enum class AnimType : uint8_t {
-//    Idle = 0,
-//    Walk = 1,
-//    Jump = 2,
-//    Attack = 3,
-//};
+struct CombatStats {
+    int maxHealth = 100;
+    int health = 100;
+    int strength = 10;      // base damage
+    int defense = 0;        // flat damage reduction
+    float armor = 0.f;      // % damage reduction (0.0 - 1.0)
+    float attackSpeed = 1.f; // multiplier for cooldowns
+    float moveSpeed = 1.f;   // multiplier for movement
+}; 
 
 // Sent once when an entity enters the client's world (reliable)
 struct SpawnMessage {
@@ -94,6 +98,8 @@ struct SpawnMessage {
     float x, y;
     uint8_t animation = 0;
     uint32_t animStartTick = 0;
+    int16_t maxHealth;
+    int16_t health;
 };
 
 // Sent when an entity leaves (reliable)

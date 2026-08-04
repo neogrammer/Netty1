@@ -47,7 +47,12 @@ void ServerGameLoop::resetWorld() {
     slots[1].knownEntities.clear();
     slots[0].camX = 0.f;
     slots[1].camX = 0.f;
+    
+    combatants.clear();
+    
     printf("[Server] World reset.\n");
+
+
 }
 
 void ServerGameLoop::disconnectPlayer(int idx) {
@@ -67,7 +72,7 @@ void ServerGameLoop::disconnectPlayer(int idx) {
         printf("[Server] All players gone – world reset. Waiting for new connections.\n");
     }
 }
-
+ 
 void ServerGameLoop::initializeWorld() {
     phase = ServerPhase::Playing;
 
@@ -78,6 +83,7 @@ void ServerGameLoop::initializeWorld() {
         e.x = x; e.y = y;
         e.animation = anim;
         e.animStartTick = serverTick;
+        e.hitbox = { 96.f, 84.f, 74.f, 80.f };
         level.addEntity(e);
 
         SpawnMessage msg{ e.id, e.type, e.x, e.y, e.animation, e.animStartTick };
@@ -89,8 +95,30 @@ void ServerGameLoop::initializeWorld() {
         return e.id;
         };
 
-    playerEntityId[0] = spawn(100.f, 600.f, 0, EntityType::Player);
-    playerEntityId[1] = spawn(700.f, 600.f, 0, EntityType::Player);
+    playerEntityId[0] = spawn(100.f, 750.f, 0, EntityType::Player);
+    playerEntityId[1] = spawn(700.f, 750.f, 0, EntityType::Player);
+
+    // Setup combatants for both players
+    for (int i = 0; i < 2; ++i) {
+        CombatantState cs;
+        cs.config.baseStats = { 100, 100, 15, 2, 0.1f, 1.f, 1.f };
+        cs.stats = cs.config.baseStats;
+        cs.config.attacks = {
+            // Attack1
+            { {5},    { 170.f, 10.f, 80.f, 160.f },  15.f, 0,  false },
+            // Attack2
+            { {4},    { 170.f, 40.f, 80.f, 130.f },  15.f, 0,  false },
+            // Attack3
+            { {7},  { 170.f, 85.f, 80.f, 80.f }, 20.f, 25, true  },
+        };
+        float sbOffX[3] = { 170.f, 170.f, 170.f };
+        float sbOffY[3] = { 10.f, 40.f, 85.f };
+        float sbW[3] = { 80.f, 80.f, 80.f };
+        float sbH[3] = { 160.f, 130.f, 80.f };
+
+        cs.isAlive = true;
+        combatants[playerEntityId[i]] = cs;
+    }
 
     for (int i = 0; i < 2; ++i) {
         slots[i].knownEntities.insert(playerEntityId[0]);
@@ -349,40 +377,6 @@ void ServerGameLoop::processPlayerInput() {
         }
     }
 }
-
-//void ServerGameLoop::processPlayerInput() {
-//    char buf[64];
-//    std::size_t received;
-//    std::optional<sf::IpAddress> senderIp;
-//    unsigned short senderPort;
-//
-//    while (udpSocket.receive(buf, sizeof(buf) - 1, received, senderIp, senderPort)
-//        == sf::Socket::Status::Done) {
-//        buf[received] = '\0';
-//
-//        int playerIdx = (senderPort == slots[0].udpPort) ? 0
-//            : (senderPort == slots[1].udpPort) ? 1
-//            : -1;
-//        if (playerIdx < 0 || !slots[playerIdx].connected) continue;
-//
-//        if (std::strcmp(buf, "READY") == 0) {
-//            if (!slots[playerIdx].ready) {
-//                slots[playerIdx].ready = true;
-//                printf("[Server] Player %d is ready – sending LoadLevel\n", playerIdx);
-//                LoadLevelMessage levelMsg{ 1 };
-//                sf::Packet p;
-//                p << NetMsgType::LoadLevel << levelMsg;
-//                if (slots[playerIdx].tcpSocket.send(p) != sf::Socket::Status::Done)
-//                    disconnectPlayer(playerIdx);
-//            }
-//            continue;
-//        }
-//
-//        if (std::strchr(buf, 'L')) slots[playerIdx].dir = -1;
-//        if (std::strchr(buf, 'R')) slots[playerIdx].dir = 1;
-//    }
-//}
-
 // ---------- Game Tick ----------
 
 void ServerGameLoop::tickGameLogic() {
@@ -616,6 +610,11 @@ void ServerGameLoop::buildAndSendSnapshot(int playerIdx) {
         s.animStartTick = e.animStartTick;
         s.flags = (e.id == playerEntityId[0]) ? slots[0].facing
             : (e.id == playerEntityId[1]) ? slots[1].facing : 0;
+
+        // Health from combatant state
+        auto combatIt = combatants.find(id);
+        s.health = (combatIt != combatants.end()) ? combatIt->second.stats.health : 0;
+
         snap.entities.push_back(s);
     }
 
@@ -623,6 +622,89 @@ void ServerGameLoop::buildAndSendSnapshot(int playerIdx) {
     snapPacket << NetMsgType::FrameSnapshot << snap;
     udpSocket.send(snapPacket, slots[playerIdx].ip.value(), slots[playerIdx].udpPort);
 }
+
+void ServerGameLoop::processAttacks() {
+    for (int i = 0; i < 2; ++i) {
+        if (!slots[i].connected) continue;
+        Entity* attacker = level.getEntity(playerEntityId[i]);
+        if (!attacker) continue;
+
+        auto it = combatants.find(playerEntityId[i]);
+        if (it == combatants.end()) continue;
+        CombatantState& atkState = it->second;
+
+        AnimType cur = static_cast<AnimType>(attacker->animation);
+        int idx = attackIndex(cur);
+        if (idx < 0 || idx >= (int)atkState.config.attacks.size()) continue;
+
+        const HotData& hot = atkState.config.attacks[idx];
+
+        // Hot frame check
+        uint32_t elapsed = serverTick - attacker->animStartTick;
+        auto animIt = kPlayerAnims.find(cur);
+        if (animIt == kPlayerAnims.end()) continue;
+        float frameDur = animIt->second.durationPerFrame;
+        uint32_t frameTicks = static_cast<uint32_t>(frameDur / TICK_DURATION);
+        if (frameTicks == 0) frameTicks = 1;
+        uint32_t currentFrame = elapsed / frameTicks;
+
+        bool isHotFrame = false;
+        for (int hf : hot.hotFrames) {
+            if (currentFrame == (uint32_t)hf) { isHotFrame = true; break; }
+        }
+
+        // Only process if this is a hot frame AND we haven't processed it yet for this attack
+        if (!isHotFrame) {
+            atkState.lastProcessedFrame = -1;  // reset when we leave hot frames
+            continue;
+        }
+
+        if (atkState.lastProcessedFrame == (int)currentFrame) continue;  // already hit on this frame
+        atkState.lastProcessedFrame = currentFrame;
+
+        // Prevent double-hit this tick
+        if (atkState.lastAttackTick == serverTick) continue;
+        atkState.lastAttackTick = serverTick;
+
+        printf("[Server] Player %d Attack%d HOT FRAME %u FIRED (tick %u)\n",
+            i, idx + 1, currentFrame, serverTick);
+
+        // Strike box in world space
+        sf::FloatRect strikeBox = getStrikeBox(*attacker, hot.strikeBox);
+
+        // Check all targets
+        for (auto& [targetId, defState] : combatants) {
+            if (targetId == playerEntityId[i]) continue;
+            if (!defState.isAlive) continue;
+            if (serverTick - defState.lastHitTick < 18) continue;  // i-frames
+
+            Entity* target = level.getEntity(targetId);
+            if (!target) continue;
+
+            if (strikeHitsTarget(strikeBox, *target, *attacker, hot.depthTolerance)) {
+                int dmg = hot.overrideStrength ? hot.damage : calculateDamage(atkState, defState);
+                defState.stats.health -= dmg;
+                defState.lastHitTick = serverTick;
+
+                printf("[Server] Entity %u hit entity %u for %d damage (HP: %d)\n",
+                    attacker->id, target->id, dmg, defState.stats.health);
+
+                if (defState.stats.health <= 0) {
+                    defState.stats.health = 0;
+                    defState.isAlive = false;
+                    defState.deathTick = serverTick;
+                    target->animation = static_cast<uint8_t>(AnimType::Death);
+                    target->animStartTick = serverTick;
+                }
+                else {
+                    target->animation = static_cast<uint8_t>(AnimType::Hit);
+                    target->animStartTick = serverTick;
+                }
+            }
+        }
+    }
+}
+
 
 // ---------- Main Loop ----------
 
@@ -679,7 +761,7 @@ void ServerGameLoop::run() {
 
             if (phase == ServerPhase::Playing) {
                 tickGameLogic();
-
+                processAttacks();
                 for (int i = 0; i < 2; ++i) {
                     if (!slots[i].connected || !slots[i].ip.has_value()) continue;
                     manageEntityVisibility(i);
@@ -708,3 +790,88 @@ void ServerGameLoop::run() {
 void ServerGameLoop::shutdown() {
     running = false;
 }
+
+
+bool ServerGameLoop::hitboxesOverlap(const Entity& a, const Entity& b) {
+    Hitbox ha = a.hitbox;
+    Hitbox hb = b.hitbox;
+
+    // Feet Y for both entities
+    float feetA = a.y + ha.offsetY + ha.height;
+    float feetB = b.y + hb.offsetY + hb.height;
+
+    // Depth check: feet must be within 10 pixels of each other
+    if (std::abs(feetA - feetB) > 10.f) return false;
+
+    // If attacker is facing left, flip the hitbox X offset
+    int facingA = 1;
+    if (a.id == playerEntityId[0]) facingA = slots[0].facing;
+    else if (a.id == playerEntityId[1]) facingA = slots[1].facing;
+    // For enemies, they'll have their own facing — default to 1 for now
+
+    float ax = a.x + (facingA == 1 ? ha.offsetX : ha.offsetX - ha.width);
+    float ay = a.y + ha.offsetY;
+    float bx = b.x + hb.offsetX;
+    float by = b.y + hb.offsetY;
+
+    return (ax < bx + hb.width && ax + ha.width > bx &&
+        ay < by + hb.height && ay + ha.height > by);
+}
+
+int ServerGameLoop::attackIndex(AnimType type) {
+    switch (type) {
+    case AnimType::Attack1: return 0;
+    case AnimType::Attack2: return 1;
+    case AnimType::Attack3: return 2;
+    default: return -1;
+    }
+}
+
+int ServerGameLoop::calculateDamage(const CombatantState& attacker, const CombatantState& defender) {
+    int raw = attacker.stats.strength;
+    raw -= defender.stats.defense;
+    if (raw < 1) raw = 1;
+    raw = static_cast<int>(raw * (1.f - defender.stats.armor));
+    if (raw < 1) raw = 1;
+    return raw;
+}
+
+sf::FloatRect ServerGameLoop::getStrikeBox(const Entity& entity, const StrikeBox& sb) {
+    int facing = 1;
+    if (entity.id == playerEntityId[0]) facing = slots[0].facing;
+    else if (entity.id == playerEntityId[1]) facing = slots[1].facing;
+
+    float bodyCenterX = entity.x + entity.hitbox.offsetX + entity.hitbox.width / 2.f;
+    float y = entity.y + sb.offsetY;
+
+    float strikeX;
+    if (facing == 1) {
+        strikeX = entity.x + sb.offsetX;
+    }
+    else {
+        // Mirror: distance from body center to strike box start, flipped
+        float distFromCenter = sb.offsetX - entity.hitbox.offsetX - entity.hitbox.width / 2.f;
+        strikeX = bodyCenterX - distFromCenter - sb.width;
+    }
+
+    return sf::FloatRect({ strikeX, y }, { sb.width, sb.height });
+}
+bool ServerGameLoop::strikeHitsTarget(const sf::FloatRect& strikeBox,
+    const Entity& target,
+    const Entity& attacker,
+    float depthTolerance) {
+    Hitbox ha = attacker.hitbox;
+    Hitbox hb = target.hitbox;
+
+    float feetAttacker = attacker.y + ha.offsetY + ha.height;
+    float feetTarget = target.y + hb.offsetY + hb.height;
+    if (std::abs(feetAttacker - feetTarget) > depthTolerance) return false;
+
+    sf::FloatRect targetBox(
+        { target.x + hb.offsetX, target.y + hb.offsetY },
+        { hb.width, hb.height }
+    );
+
+    return strikeBox.findIntersection(targetBox).has_value();
+}
+

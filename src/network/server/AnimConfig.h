@@ -14,9 +14,9 @@ struct AnimConfig {
 const std::unordered_map<AnimType, AnimConfig> kPlayerAnims = {
     { AnimType::Idle,     { 10, 0.10f, true  } },
     { AnimType::Walk,     {  8, 0.08f, true  } },
-    { AnimType::Attack1,  {  7, 0.07f, false } },
-    { AnimType::Attack2,  {  6, 0.07f, false } },
-    { AnimType::Attack3,  {  9, 0.07f, false } },
+    { AnimType::Attack1,  {  7, 0.14f, false } },
+    { AnimType::Attack2,  {  6, 0.14f, false } },
+    { AnimType::Attack3,  {  9, 0.14f, false } },
     { AnimType::JumpUp,   {  3, 0.10f, false } },
     { AnimType::JumpDown, {  3, 0.10f, false } },
     { AnimType::Hit,      {  3, 0.08f, false } },

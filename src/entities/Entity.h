@@ -11,6 +11,8 @@ struct ClientEntity {
     AnimType currentAnim = AnimType::Idle;
     uint32_t animStartTick = 0;
     float x = 0.f, y = 0.f;
+    int16_t health = 100;
+    int16_t maxHealth = 100;
 
     ClientEntity() = default;
     ClientEntity(const ClientEntity&) = delete;

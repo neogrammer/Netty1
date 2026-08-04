@@ -38,11 +38,11 @@ sf::Packet& operator>>(sf::Packet& p, AnimType& t) {
 // ---------- EntitySnapshot ----------
 sf::Packet& operator<<(sf::Packet& p, const EntitySnapshot& s) {
     return p << s.entityId << s.x_quant << s.y_quant
-        << s.animation << s.animStartTick << s.flags;
+        << s.animation << s.animStartTick << s.flags << s.health;
 }
 sf::Packet& operator>>(sf::Packet& p, EntitySnapshot& s) {
     return p >> s.entityId >> s.x_quant >> s.y_quant
-        >> s.animation >> s.animStartTick >> s.flags;
+        >> s.animation >> s.animStartTick >> s.flags >> s.health;
 }
 
 // ---------- SpawnMessage ----------

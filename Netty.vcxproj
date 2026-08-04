@@ -178,6 +178,7 @@
     <ClInclude Include="src\network\NetTypes.h" />
     <ClInclude Include="src\network\NetworkCommon.h" />
     <ClInclude Include="src\network\server\AnimConfig.h" />
+    <ClInclude Include="src\network\server\Combat.h" />
     <ClInclude Include="src\network\server\Server.h" />
     <ClInclude Include="src\network\server\ServerGameLoop.h" />
     <ClInclude Include="src\network\trans\SnapshotInterpolator.h" />

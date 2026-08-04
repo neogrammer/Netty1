@@ -79,6 +79,7 @@ void PlayState::update(sf::Time dt) {
             if (auto* snapEnt = interpolator.findEntity(id)) {
                 ent.animStartTick = snapEnt->animStartTick; 
                 ent.currentAnim = static_cast<AnimType>(snapEnt->animation);
+                ent.health = snapEnt->health;
             }
         }
     }
@@ -130,7 +131,75 @@ void PlayState::draw(sf::RenderWindow& window) {
         }
 
         ent.sprite->setPosition({ std::round(ent.x - cameraOffset.x), std::round(ent.y - cameraOffset.y) });
+
+        // --- Debug: strike box (matches server getStrikeBox) ---
+        if (id == context.myEntityId && ent.currentAnim >= AnimType::Attack1 && ent.currentAnim <= AnimType::Attack3) {
+            int idx = static_cast<int>(ent.currentAnim) - static_cast<int>(AnimType::Attack1);
+
+            float sbOffX[3] = { 170.f, 170.f, 170.f };
+            float sbOffY[3] = { 10.f, 40.f, 85.f };
+            float sbW[3] = { 80.f, 80.f, 80.f };
+            float sbH[3] = { 160.f, 130.f, 80.f };
+
+            uint8_t facing = 0;
+            if (auto* snapEnt = interpolator.findEntity(id)) facing = snapEnt->flags & 1;
+
+            // Same logic as server getStrikeBox()
+            float bodyCenterX = ent.x + 96.f + 74.f / 2.f;  // hitbox offsetX + width/2
+            float sbx, sby = ent.y + sbOffY[idx];
+
+            if (facing == 1) {
+                sbx = ent.x + sbOffX[idx];
+            }
+            else {
+                float distFromCenter = sbOffX[idx] - 96.f - 74.f / 2.f;
+                sbx = bodyCenterX - distFromCenter - sbW[idx];
+            }
+
+            sf::RectangleShape debugBox({ sbW[idx], sbH[idx] });
+            debugBox.setPosition({ std::round(sbx - cameraOffset.x), std::round(sby - cameraOffset.y) });
+            debugBox.setFillColor(sf::Color(255, 0, 0, 100));
+            // After computing the animation frame...
+            printf("[Client] Anim=%d, frame=%d, tick=%u\n",
+                (int)ent.currentAnim, frameIdx, ent.animStartTick);
+            window.draw(debugBox);
+        }
+
+        // --- Debug: body hitbox ---
+        {
+            // Player hitbox hardcoded for debug (match server: offset 48,42 size 37,40)
+            float hbOffX = 96.f;
+            float hbOffY = 84.f;
+            float hbW = 74.f;
+            float hbH = 80.f;
+
+            sf::RectangleShape bodyBox({ hbW, hbH });
+            bodyBox.setPosition({
+                std::round(ent.x + hbOffX - cameraOffset.x),
+                std::round(ent.y + hbOffY - cameraOffset.y)
+                });
+            bodyBox.setFillColor(sf::Color(0, 255, 0, 80));   // green, semi-transparent
+            bodyBox.setOutlineColor(sf::Color(0, 255, 0, 120));
+            bodyBox.setOutlineThickness(1.f);
+            window.draw(bodyBox);
+        }
+
+        // --- Debug: feet position ---
+        {
+            
+            sf::RectangleShape feetMarker({ 6.f, 4.f });
+            float feetY = ent.y + 84.f + 80.f;  // offsetY + height
+            feetMarker.setPosition({
+                std::round(ent.x + 96.f + 37.f - cameraOffset.x),  // offX + width/2
+                std::round(feetY - cameraOffset.y)
+                });
+            feetMarker.setFillColor(sf::Color(255, 255, 0, 200));  // yellow
+            window.draw(feetMarker);
+        }
+
         window.draw(*ent.sprite);
+
+
     }
     
     // draw damage indicators and other dialog in game messages here
@@ -140,6 +209,39 @@ void PlayState::draw(sf::RenderWindow& window) {
 	background.drawForeground(window, cameraOffset);
 
     // Now draw UI
+    for (auto& [id, ent] : entities) {
+        if (!ent.sprite) continue;
+        if (ent.health > 0 && ent.maxHealth > 0) {
+            float barWidth = 50.f;
+            float barHeight = 6.f;
+            float healthPercent = (float)ent.health / ent.maxHealth;
+
+            sf::Vector2f barPos = {
+                std::round(ent.x - cameraOffset.x - barWidth / 2.f + 126.f),  // center above sprite (sprite is 252 wide)
+                std::round(ent.y - cameraOffset.y - 86.f)  // offset above sprite
+            };
+
+            // Background (red)
+            sf::RectangleShape bgBar({ barWidth, barHeight });
+            bgBar.setPosition(barPos);
+            bgBar.setFillColor(sf::Color(60, 0, 0));
+            window.draw(bgBar);
+
+            // Foreground (green → yellow → red)
+            sf::Color barColor;
+            if (healthPercent > 0.6f)
+                barColor = sf::Color(0, 200, 0);
+            else if (healthPercent > 0.3f)
+                barColor = sf::Color(200, 200, 0);
+            else
+                barColor = sf::Color(200, 0, 0);
+
+            sf::RectangleShape fgBar({ barWidth * healthPercent, barHeight });
+            fgBar.setPosition(barPos);
+            fgBar.setFillColor(barColor);
+            window.draw(fgBar);
+        }
+    }
 
     // display the frame to the window context
     window.display();

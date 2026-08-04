@@ -10,7 +10,8 @@
 #include <unordered_set>
 #include <cstdint>
 #include <atomic>
-
+#include <network/server/Combat.h>
+#include <SFML/Graphics/Rect.hpp>
 struct PlayerSlot {
     sf::TcpSocket tcpSocket;
     unsigned short udpPort = 0;
@@ -76,6 +77,14 @@ private:
     void tickGameLogic();
     void manageEntityVisibility(int playerIdx);
     void buildAndSendSnapshot(int playerIdx);
+    bool hitboxesOverlap(const Entity& a, const Entity& b);
+
+    void processAttacks();
+    sf::FloatRect getStrikeBox(const Entity& entity, const StrikeBox& sb);
+    bool strikeHitsTarget(const sf::FloatRect& strikeBox, const Entity& target,
+        const Entity& attacker, float depthTolerance);
+    int calculateDamage(const CombatantState& attacker, const CombatantState& defender);
+    int attackIndex(AnimType type);
 
     // --- Members ---
     sf::TcpListener& listener;
@@ -88,6 +97,9 @@ private:
     uint32_t serverTick = 0;
     uint32_t playerEntityId[2] = { 0xFFFFFFFF, 0xFFFFFFFF };
     int playerCount = 0;
+
+
+    std::unordered_map<uint32_t, CombatantState> combatants;
 
     std::atomic<bool> running{ true };
 
