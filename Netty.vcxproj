@@ -205,6 +205,7 @@
     <Image Include="assets\textures\player\Hero1_Sheet_Big.png" />
     <Image Include="assets\textures\player\idle.png" />
     <Image Include="assets\textures\player\walk.png" />
+    <Image Include="assets\textures\Ui\HealthDecal.png" />
     <Image Include="assets\textures\zones\Zone1_Icons.png" />
     <Image Include="assets\textures\zones\Zone1_Map.jpg" />
   </ItemGroup>

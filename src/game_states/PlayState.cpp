@@ -11,8 +11,20 @@ PlayState::PlayState(sf::RenderWindow* win, ClientContext& ctx,
     : window(win), context(ctx), entityAnimSets(animSets) {}
 
 void PlayState::enter() {
+    interpolator.reset();
+    entities.clear();
+
+    // Reset context HUD state
+    context.player1Connected = false;
+    context.player2Connected = false;
+    context.player1Health = 100;
+    context.player1MaxHealth = 100;
+    context.player2Health = 100;
+    context.player2MaxHealth = 100;
+
     levelRes.loadForScene(context.currentLevel, true);
 
+    // ... background setup unchanged ...
     background.setFarLayer(levelRes, (int)Cfg::Textures::L1_BgFar, 0.01f, true);
     background.addMidLayer(levelRes, (int)Cfg::Textures::L1_BgMid, 0.05f, true);
     background.addMidLayer(levelRes, (int)Cfg::Textures::L1_BgNear, 0.4f, true);
@@ -21,9 +33,26 @@ void PlayState::enter() {
         { 0, 702 }, { 18000, 702 }, { 18000, 798 }, { 0, 798 }
     };
     background.setGroundLayer(levelRes, (int)Cfg::Textures::L1_Ground, groundPoly, true);
-    
+    // Set own connection
+    if (context.playerId == 0) {
+        context.player1Connected = true;
+        context.player1Health = 100;
+        context.player1MaxHealth = 100;
+    }
+    else {
+        context.player2Connected = true;
+        context.player2Health = 100;
+        context.player2MaxHealth = 100;
+    }
+
+    sf::Packet p;
+    p << NetMsgType::PlayerReady;
+    context.tcpSocket->send(p);
+
+    printf("[PlayState] Sent PlayerReady to server\n");
     printf("[PlayState] Entered level %d\n", context.currentLevel);
 }
+
 
 void PlayState::exit() {
     entities.clear();
@@ -199,50 +228,81 @@ void PlayState::draw(sf::RenderWindow& window) {
 
         window.draw(*ent.sprite);
 
+        // --- Overhead health bar (enemies only) ---
+        if (ent.entityType != EntityType::Player && ent.maxHealth > 0) {
+            float barWidth = 50.f;
+            float barHeight = 5.f;
+            float healthPercent = (float)ent.health / ent.maxHealth;
+
+            sf::Vector2f barPos = {
+                std::round(ent.x - cameraOffset.x + 96.f + 37.f - barWidth / 2.f),  // centered above hitbox
+                std::round(ent.y - cameraOffset.y - 10.f)                           // above sprite
+            };
+
+            // Background (dark red)
+            sf::RectangleShape bgBar({ barWidth, barHeight });
+            bgBar.setPosition(barPos);
+            bgBar.setFillColor(sf::Color(40, 0, 0));
+            window.draw(bgBar);
+
+            // Foreground (green → yellow → red)
+            sf::Color barColor;
+            if (healthPercent > 0.6f)      barColor = sf::Color(0, 200, 0);
+            else if (healthPercent > 0.3f) barColor = sf::Color(200, 200, 0);
+            else                           barColor = sf::Color(200, 0, 0);
+
+            sf::RectangleShape fgBar({ barWidth * healthPercent, barHeight });
+            fgBar.setPosition(barPos);
+            fgBar.setFillColor(barColor);
+            window.draw(fgBar);
+
+			
+        }
 
     }
     
     // draw damage indicators and other dialog in game messages here
 
 
-	// after entities, draw foreground layers
-	background.drawForeground(window, cameraOffset);
+    // after entities, draw foreground layers
+    background.drawForeground(window, cameraOffset);
 
-    // Now draw UI
-    for (auto& [id, ent] : entities) {
-        if (!ent.sprite) continue;
-        if (ent.health > 0 && ent.maxHealth > 0) {
-            float barWidth = 50.f;
-            float barHeight = 6.f;
-            float healthPercent = (float)ent.health / ent.maxHealth;
+    // --- HUD Plaques ---
+    {
+        sf::Sprite decal(Cfg::textures.get((int)Cfg::Textures::Ui_HealthDecal));
+        sf::Font& hudFont = Cfg::fonts.get((int)Cfg::Fonts::Bubbly);
 
-            sf::Vector2f barPos = {
-                std::round(ent.x - cameraOffset.x - barWidth / 2.f + 126.f),  // center above sprite (sprite is 252 wide)
-                std::round(ent.y - cameraOffset.y - 86.f)  // offset above sprite
+        auto drawPlaque = [&](float x, const std::string& label, int health, int maxHealth, bool connected) {
+            // Label above the decal
+            sf::Text nameText(hudFont, connected ? label : "Waiting For Player", 22);
+            nameText.setPosition({ x + 10.f, 8.f });
+            nameText.setFillColor(connected ? sf::Color::White : sf::Color(255, 255, 100, 200));
+            nameText.setOutlineThickness(2.f);
+            nameText.setOutlineColor(sf::Color(0, 0, 0));
+            window.draw(nameText);
+
+            // Decal below the label
+            decal.setPosition({ x, 8.f + 26.f });
+            window.draw(decal);
+
+            // Health numbers inside the decal
+            if (connected) {
+                std::string hpStr = std::to_string(health) + " / " + std::to_string(maxHealth);
+                sf::Text hpText(hudFont, hpStr, 18);
+                hpText.setPosition({ x + 73.f, 38.f + 10.f });
+                hpText.setFillColor(sf::Color::White);
+                hpText.setOutlineThickness(2.f);
+                hpText.setOutlineColor(sf::Color(0, 0, 0));
+                window.draw(hpText);
+                
+            }
             };
 
-            // Background (red)
-            sf::RectangleShape bgBar({ barWidth, barHeight });
-            bgBar.setPosition(barPos);
-            bgBar.setFillColor(sf::Color(60, 0, 0));
-            window.draw(bgBar);
-
-            // Foreground (green → yellow → red)
-            sf::Color barColor;
-            if (healthPercent > 0.6f)
-                barColor = sf::Color(0, 200, 0);
-            else if (healthPercent > 0.3f)
-                barColor = sf::Color(200, 200, 0);
-            else
-                barColor = sf::Color(200, 0, 0);
-
-            sf::RectangleShape fgBar({ barWidth * healthPercent, barHeight });
-            fgBar.setPosition(barPos);
-            fgBar.setFillColor(barColor);
-            window.draw(fgBar);
-        }
+        drawPlaque(10.f, "Player 1", context.player1Health, context.player1MaxHealth, context.player1Connected);
+        drawPlaque(300.f, "Player 2", context.player2Health, context.player2MaxHealth, context.player2Connected);
     }
 
     // display the frame to the window context
     window.display();
+
 }

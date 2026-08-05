@@ -69,3 +69,13 @@ const EntitySnapshot* SnapshotInterpolator::findEntity(uint32_t entityId) const 
         [entityId](const EntitySnapshot& s) { return s.entityId == entityId; });
     return (it != curr.entities.end()) ? &(*it) : nullptr;
 }
+
+void SnapshotInterpolator::reset() {
+    hasPrev = false;
+    prev = FrameSnapshot{};
+    curr = FrameSnapshot{};
+    interpT = 0.0f;
+    currentRenderTick = 0.0f;
+    lastSnapTime = sf::Time::Zero;
+    clock.restart();
+}

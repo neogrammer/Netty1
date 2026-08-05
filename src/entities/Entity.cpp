@@ -33,5 +33,7 @@ std::pair<bool, ClientEntity> createClientEntity(
         }
     }
 
+    ent.entityType = type;
+
     return { true, std::move(ent) };
 }

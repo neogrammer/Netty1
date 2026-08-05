@@ -15,6 +15,13 @@ struct ClientContext {
     int currentLevel = -1;
     int currentZone = -1;
 
+    bool player1Connected = false;
+    bool player2Connected = false;
+    int player1Health = 100;
+    int player1MaxHealth = 100;
+    int player2Health = 100;
+    int player2MaxHealth = 100;
+
     GameStateManager* gsm = nullptr;
 
     // Snapshot queue

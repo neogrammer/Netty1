@@ -31,6 +31,7 @@ struct PlayerSlot {
     bool wantsAttack2 = false;
     bool wantsAttack3 = false;
     bool wantsJump = false;
+    bool readyInPlayState = false;
     // Attack combo tracking
     AnimType currentAttack = AnimType::Idle;  // which attack animation is playing
 
@@ -78,6 +79,8 @@ private:
     void manageEntityVisibility(int playerIdx);
     void buildAndSendSnapshot(int playerIdx);
     bool hitboxesOverlap(const Entity& a, const Entity& b);
+    void broadcastPlayerStatus(int idx);
+    void broadcastAllPlayerStatusTo(int toIdx);
 
     void processAttacks();
     sf::FloatRect getStrikeBox(const Entity& entity, const StrikeBox& sb);
@@ -85,6 +88,7 @@ private:
         const Entity& attacker, float depthTolerance);
     int calculateDamage(const CombatantState& attacker, const CombatantState& defender);
     int attackIndex(AnimType type);
+    CombatantState createPlayerCombatant(); 
 
     // --- Members ---
     sf::TcpListener& listener;
@@ -97,6 +101,8 @@ private:
     uint32_t serverTick = 0;
     uint32_t playerEntityId[2] = { 0xFFFFFFFF, 0xFFFFFFFF };
     int playerCount = 0;
+
+    std::vector<uint32_t> pendingEntityRemovals;
 
 
     std::unordered_map<uint32_t, CombatantState> combatants;
@@ -111,4 +117,6 @@ private:
     static constexpr float LEFT_WORLD = 0.0f;
     static constexpr float RIGHT_WORLD = 18000.0f;
     static constexpr float PLAYER_SPEED = 300.0f;
+
+
 };

@@ -79,6 +79,13 @@ sf::Packet& operator>>(sf::Packet& p, FrameSnapshot& snap) {
     return p;
 }
 
+sf::Packet& operator<<(sf::Packet& p, const PlayerStatusMessage& msg) {
+    return p << msg.playerIndex << msg.connected << msg.health << msg.maxHealth;
+}
+sf::Packet& operator>>(sf::Packet& p, PlayerStatusMessage& msg) {
+    return p >> msg.playerIndex >> msg.connected >> msg.health >> msg.maxHealth;
+}
+
 sf::Packet& operator<<(sf::Packet& p, const AssignPlayerMessage& msg) {
     return p << msg.entityId;
 }

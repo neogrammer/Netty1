@@ -60,6 +60,23 @@ void ClientNetworkProcessor::handleTcpMessage(sf::Packet& packet) {
         ctx.pendingDestroys.push_back(msg);
         break;
     }
+    case NetMsgType::PlayerStatus: {
+        PlayerStatusMessage msg;
+        packet >> msg;
+        printf("[Client] PlayerStatus: idx=%d, connected=%d, hp=%d/%d\n",
+            msg.playerIndex, msg.connected, msg.health, msg.maxHealth);
+        if (msg.playerIndex == 0) {
+            ctx.player1Connected = msg.connected;
+            ctx.player1Health = msg.health;
+            ctx.player1MaxHealth = msg.maxHealth;
+        }
+        else {
+            ctx.player2Connected = msg.connected;
+            ctx.player2Health = msg.health;
+            ctx.player2MaxHealth = msg.maxHealth;
+        }
+        break;
+    }
     }
 }
 
@@ -78,3 +95,4 @@ void ClientNetworkProcessor::sendInput(const std::string& input) {
     ctx.udpSocket->send(input.c_str(), input.size(),
         ctx.serverIp, ctx.serverPort);
 }
+

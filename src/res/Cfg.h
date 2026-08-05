@@ -33,6 +33,8 @@ struct Cfg
 		// Overworld textures
 		Zone1_Map, Zone1_Icons,
 
+		Ui_HealthDecal,
+
 		Count, None };
 	enum class Fonts : int { Bubbly, Count, None };
 

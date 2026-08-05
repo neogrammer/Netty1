@@ -70,6 +70,9 @@
     <Filter Include="Source Files\network\trans">
       <UniqueIdentifier>{14e1d59f-79fd-41b7-8e57-2ca5cf32d46d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\assets\textures\Ui">
+      <UniqueIdentifier>{7dd2ec63-92ab-4711-8d87-9db97e1e57ce}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -239,6 +242,9 @@
     </Image>
     <Image Include="assets\textures\player\Hero1_Sheet_Big.png">
       <Filter>Resource Files\assets\textures\player</Filter>
+    </Image>
+    <Image Include="assets\textures\Ui\HealthDecal.png">
+      <Filter>Resource Files\assets\textures\Ui</Filter>
     </Image>
   </ItemGroup>
 </Project>

@@ -16,6 +16,8 @@ void Cfg::initTextures()
 	textures.load((int)Textures::Hero1_Sheet, "assets/textures/player/Hero1_Sheet_Big.png");
     textures.load((int)Textures::None, "assets/textures/none.png");
 
+	textures.load((int)Textures::Ui_HealthDecal, "assets/textures/Ui/HealthDecal.png");
+
 }
 
 

@@ -47,9 +47,10 @@ void ServerGameLoop::resetWorld() {
     slots[1].knownEntities.clear();
     slots[0].camX = 0.f;
     slots[1].camX = 0.f;
-    
+    slots[0].readyInPlayState = false;
+    slots[1].readyInPlayState = false;
     combatants.clear();
-    
+    pendingEntityRemovals.clear();
     printf("[Server] World reset.\n");
 
 
@@ -57,16 +58,47 @@ void ServerGameLoop::resetWorld() {
 
 void ServerGameLoop::disconnectPlayer(int idx) {
     if (!slots[idx].connected) return;
+
+    // --- Queue entity for deferred removal ---
+    if (playerEntityId[idx] != 0xFFFFFFFF) {
+        uint32_t entId = playerEntityId[idx];
+        playerEntityId[idx] = 0xFFFFFFFF;
+        combatants.erase(entId);
+
+        DestroyMessage destroyMsg{ entId };
+        for (int i = 0; i < 2; ++i) {
+            if (i != idx && slots[i].connected) {
+                sendDestroyToPlayer(i, destroyMsg);
+                slots[i].knownEntities.erase(entId);
+            }
+        }
+        // Also remove from disconnected player's own known set (about to be cleared anyway)
+        slots[idx].knownEntities.erase(entId);
+        pendingEntityRemovals.push_back(entId);
+    }
+
     slots[idx].tcpSocket.disconnect();
     slots[idx].connected = false;
     slots[idx].ready = false;
     slots[idx].ip = std::nullopt;
     slots[idx].dir = 0;
+    slots[idx].vertDir = 0;
     slots[idx].facing = 1;
     slots[idx].knownEntities.clear();
     slots[idx].camX = 0.f;
+    slots[idx].readyInPlayState = false;
+    slots[idx].isJumping = false;
+    slots[idx].idleTicks = 0;
     playerCount--;
     printf("[Server] Player %d disconnected. %d player(s) remaining.\n", idx, playerCount);
+
+    // Notify remaining player about the disconnect
+    for (int i = 0; i < 2; ++i) {
+        if (slots[i].connected) {
+            broadcastAllPlayerStatusTo(i);
+        }
+    }
+
     if (playerCount == 0) {
         resetWorld();
         printf("[Server] All players gone – world reset. Waiting for new connections.\n");
@@ -95,36 +127,30 @@ void ServerGameLoop::initializeWorld() {
         return e.id;
         };
 
-    playerEntityId[0] = spawn(100.f, 750.f, 0, EntityType::Player);
-    playerEntityId[1] = spawn(700.f, 750.f, 0, EntityType::Player);
-
-    // Setup combatants for both players
-    for (int i = 0; i < 2; ++i) {
-        CombatantState cs;
-        cs.config.baseStats = { 100, 100, 15, 2, 0.1f, 1.f, 1.f };
-        cs.stats = cs.config.baseStats;
-        cs.config.attacks = {
-            // Attack1
-            { {5},    { 170.f, 10.f, 80.f, 160.f },  15.f, 0,  false },
-            // Attack2
-            { {4},    { 170.f, 40.f, 80.f, 130.f },  15.f, 0,  false },
-            // Attack3
-            { {7},  { 170.f, 85.f, 80.f, 80.f }, 20.f, 25, true  },
-        };
-        float sbOffX[3] = { 170.f, 170.f, 170.f };
-        float sbOffY[3] = { 10.f, 40.f, 85.f };
-        float sbW[3] = { 80.f, 80.f, 80.f };
-        float sbH[3] = { 160.f, 130.f, 80.f };
-
-        cs.isAlive = true;
-        combatants[playerEntityId[i]] = cs;
+    // Only spawn for connected players
+    if (slots[0].connected) {
+        playerEntityId[0] = spawn(100.f, 750.f, 0, EntityType::Player);
+        combatants[playerEntityId[0]] = createPlayerCombatant();
+        slots[0].knownEntities.insert(playerEntityId[0]);
+        slots[0].camX = 100.f;
     }
 
-    for (int i = 0; i < 2; ++i) {
-        slots[i].knownEntities.insert(playerEntityId[0]);
-        slots[i].knownEntities.insert(playerEntityId[1]);
-        slots[i].camX = (i == 0) ? 100.f : 700.f;
+    if (slots[1].connected) {
+        playerEntityId[1] = spawn(700.f, 750.f, 0, EntityType::Player);
+        combatants[playerEntityId[1]] = createPlayerCombatant();
+        slots[1].knownEntities.insert(playerEntityId[1]);
+        slots[1].camX = 700.f;
     }
+
+    // Cross-register: each connected player knows about the other's entity
+    for (int i = 0; i < 2; ++i) {
+        for (int j = 0; j < 2; ++j) {
+            if (i != j && slots[i].connected && slots[j].connected) {
+                slots[i].knownEntities.insert(playerEntityId[j]);
+            }
+        }
+    }
+
     printf("[Server] World initialized.\n");
 }
 
@@ -247,70 +273,70 @@ void ServerGameLoop::waitForUdpHandshake() {
 
 // ---------- Late Join (in-game) ----------
 
-void ServerGameLoop::acceptLateJoin() {
-    sf::TcpSocket newSocket;
-    if (listener.accept(newSocket) != sf::Socket::Status::Done) return;
-
-    int freeSlot = -1;
-    for (int i = 0; i < 2; ++i) {
-        if (!slots[i].connected) { freeSlot = i; break; }
-    }
-    if (freeSlot < 0) return;
-
-    unsigned short newUdpPort;
-    sf::Packet pkt;
-    pkt << freeSlot << static_cast<unsigned short>(UDP_PORT);
-    if (newSocket.send(pkt) != sf::Socket::Status::Done) return;
-    pkt.clear();
-    if (newSocket.receive(pkt) != sf::Socket::Status::Done) return;
-    pkt >> newUdpPort;
-
-    slots[freeSlot].tcpSocket = std::move(newSocket);
-    slots[freeSlot].tcpSocket.setBlocking(false);
-    slots[freeSlot].udpPort = newUdpPort;
-    slots[freeSlot].connected = true;
-    playerCount++;
-    printf("[Server] Late player %d joined (UDP %d)\n", freeSlot, newUdpPort);
-
-    // Wait for UDP OK
-    char okBuf[4]; std::size_t recvd;
-    std::optional<sf::IpAddress> ip; unsigned short port;
-    while (udpSocket.receive(okBuf, 3, recvd, ip, port) != sf::Socket::Status::Done
-        || std::strncmp(okBuf, "OK", 2) != 0
-        || port != newUdpPort) {
-        sf::sleep(sf::milliseconds(10));
-    }
-    slots[freeSlot].ip = ip;
-    printf("[Server] Learned endpoint for late player %d: %s:%d\n",
-        freeSlot, ip->toString().c_str(), port);
-
-    // Confirm
-    sf::Packet confirm;
-    std::string okStr = "OK";
-    confirm << okStr;
-    if (slots[freeSlot].tcpSocket.send(confirm) != sf::Socket::Status::Done) {
-        disconnectPlayer(freeSlot);
-        return;
-    }
-
-    // Initialize world if this is the first player
-    if (playerCount == 1 && phase == ServerPhase::Lobby)
-        initializeWorld();
-
-    // Assign player entity
-    sendAssignPlayerEntity(freeSlot);
-
-    // Send all existing entities to the new player
-    for (auto& e : level.allEntities) {
-        SpawnMessage spawnMsg{ e.id, e.type, e.x, e.y, e.animation, e.animStartTick };
-        sf::Packet sp;
-        sp << NetMsgType::SpawnEntity << spawnMsg;
-        if (slots[freeSlot].tcpSocket.send(sp) != sf::Socket::Status::Done) {
-            disconnectPlayer(freeSlot);
-            break;
-        }
-    }
-}
+//void ServerGameLoop::acceptLateJoin() {
+//    sf::TcpSocket newSocket;
+//    if (listener.accept(newSocket) != sf::Socket::Status::Done) return;
+//
+//    int freeSlot = -1;
+//    for (int i = 0; i < 2; ++i) {
+//        if (!slots[i].connected) { freeSlot = i; break; }
+//    }
+//    if (freeSlot < 0) return;
+//
+//    unsigned short newUdpPort;
+//    sf::Packet pkt;
+//    pkt << freeSlot << static_cast<unsigned short>(UDP_PORT);
+//    if (newSocket.send(pkt) != sf::Socket::Status::Done) return;
+//    pkt.clear();
+//    if (newSocket.receive(pkt) != sf::Socket::Status::Done) return;
+//    pkt >> newUdpPort;
+//
+//    slots[freeSlot].tcpSocket = std::move(newSocket);
+//    slots[freeSlot].tcpSocket.setBlocking(false);
+//    slots[freeSlot].udpPort = newUdpPort;
+//    slots[freeSlot].connected = true;
+//    playerCount++;
+//    printf("[Server] Late player %d joined (UDP %d)\n", freeSlot, newUdpPort);
+//
+//    // Wait for UDP OK
+//    char okBuf[4]; std::size_t recvd;
+//    std::optional<sf::IpAddress> ip; unsigned short port;
+//    while (udpSocket.receive(okBuf, 3, recvd, ip, port) != sf::Socket::Status::Done
+//        || std::strncmp(okBuf, "OK", 2) != 0
+//        || port != newUdpPort) {
+//        sf::sleep(sf::milliseconds(10));
+//    }
+//    slots[freeSlot].ip = ip;
+//    printf("[Server] Learned endpoint for late player %d: %s:%d\n",
+//        freeSlot, ip->toString().c_str(), port);
+//
+//    // Confirm
+//    sf::Packet confirm;
+//    std::string okStr = "OK";
+//    confirm << okStr;
+//    if (slots[freeSlot].tcpSocket.send(confirm) != sf::Socket::Status::Done) {
+//        disconnectPlayer(freeSlot);
+//        return;
+//    }
+//
+//    // Initialize world if this is the first player
+//    if (playerCount == 1 && phase == ServerPhase::Lobby)
+//        initializeWorld();
+//
+//    // Assign player entity
+//    sendAssignPlayerEntity(freeSlot);
+//
+//    // Send all existing entities to the new player
+//    for (auto& e : level.allEntities) {
+//        SpawnMessage spawnMsg{ e.id, e.type, e.x, e.y, e.animation, e.animStartTick };
+//        sf::Packet sp;
+//        sp << NetMsgType::SpawnEntity << spawnMsg;
+//        if (slots[freeSlot].tcpSocket.send(sp) != sf::Socket::Status::Done) {
+//            disconnectPlayer(freeSlot);
+//            break;
+//        }
+//    }
+//}
 
 // ---------- Input Processing ----------
 
@@ -333,9 +359,70 @@ void ServerGameLoop::processPlayerInput() {
 
         receivedThisTick[playerIdx] = true;   
 
+        //if (std::strcmp(buf, "READY") == 0) {
+        //    if (!slots[playerIdx].ready) {
+        //        slots[playerIdx].ready = true;
+        //        printf("[Server] Player %d is ready – sending LoadLevel\n", playerIdx);
+        //        LoadLevelMessage levelMsg{ 1 };
+        //        sf::Packet p;
+        //        p << NetMsgType::LoadLevel << levelMsg;
+        //        if (slots[playerIdx].tcpSocket.send(p) != sf::Socket::Status::Done)
+        //            disconnectPlayer(playerIdx);
+        //    }
+        //    continue;
+        //}
+
         if (std::strcmp(buf, "READY") == 0) {
             if (!slots[playerIdx].ready) {
                 slots[playerIdx].ready = true;
+
+                // Spawn the player's entity if it doesn't exist yet (late join)
+                if (playerEntityId[playerIdx] == 0xFFFFFFFF) {
+                    Entity e;
+                    e.id = nextEntityId++;
+                    e.type = EntityType::Player;
+                    e.x = (playerIdx == 0) ? 100.f : 700.f;
+                    e.y = 750.f;
+                    e.animation = static_cast<uint8_t>(AnimType::Idle);
+                    e.animStartTick = serverTick;
+                    e.hitbox = { 96.f, 84.f, 74.f, 80.f };
+                    level.addEntity(e);
+                    playerEntityId[playerIdx] = e.id;
+                    combatants[e.id] = createPlayerCombatant();
+                    slots[playerIdx].knownEntities.insert(e.id);
+                    slots[playerIdx].camX = e.x;
+
+                    // Send AssignPlayerEntity
+                    sendAssignPlayerEntity(playerIdx);
+
+                    // Send all existing entities to the new player
+                    for (auto& ent : level.allEntities) {
+                        SpawnMessage spawnMsg{ ent.id, ent.type, ent.x, ent.y, ent.animation, ent.animStartTick };
+                        sf::Packet sp;
+                        sp << NetMsgType::SpawnEntity << spawnMsg;
+                        slots[playerIdx].tcpSocket.send(sp);
+                    }
+
+                    // Send the new player's entity to existing players
+                    SpawnMessage newPlayerMsg{ e.id, e.type, e.x, e.y, e.animation, e.animStartTick };
+                    for (int i = 0; i < 2; ++i) {
+                        if (i != playerIdx && slots[i].connected) {
+                            sendSpawnToPlayer(i, newPlayerMsg);
+                            slots[i].knownEntities.insert(e.id);
+                        }
+                    }
+
+                    // Cross-register known entities
+                    for (int i = 0; i < 2; ++i) {
+                        if (slots[i].connected && playerEntityId[i] != 0xFFFFFFFF) {
+                            slots[playerIdx].knownEntities.insert(playerEntityId[i]);
+                            if (i != playerIdx) {
+                                slots[i].knownEntities.insert(playerEntityId[playerIdx]);
+                            }
+                        }
+                    }
+                }
+
                 printf("[Server] Player %d is ready – sending LoadLevel\n", playerIdx);
                 LoadLevelMessage levelMsg{ 1 };
                 sf::Packet p;
@@ -345,6 +432,7 @@ void ServerGameLoop::processPlayerInput() {
             }
             continue;
         }
+
 
         // Reset action flags for this player
         slots[playerIdx].dir = 0;
@@ -390,6 +478,7 @@ void ServerGameLoop::tickGameLogic() {
     // Move player entities and update camera
     for (auto& e : level.allEntities) {
         for (int i = 0; i < 2; ++i) {
+            if (playerEntityId[i] == 0xFFFFFFFF) continue;
             if (e.id != playerEntityId[i]) continue;
 
             auto& slot = slots[i];
@@ -543,6 +632,8 @@ void ServerGameLoop::tickGameLogic() {
 }
 
 void ServerGameLoop::manageEntityVisibility(int playerIdx) {
+    if (playerIdx < 0 || playerIdx >= 2) return;
+    if (!slots[playerIdx].connected) return;
     auto& known = slots[playerIdx].knownEntities;
     sf::FloatRect camera(
         { slots[playerIdx].camX - SCREEN_W / 2.f, 0.f },
@@ -576,6 +667,10 @@ void ServerGameLoop::manageEntityVisibility(int playerIdx) {
 
     for (auto id : toSpawn) {
         Entity* ent = level.getEntity(id);
+        if (!ent) {
+            known.erase(id);
+            continue;
+        }
         if (ent)
             sendSpawnToPlayer(playerIdx,
                 { ent->id, ent->type, ent->x, ent->y, ent->animation, ent->animStartTick });
@@ -585,7 +680,54 @@ void ServerGameLoop::manageEntityVisibility(int playerIdx) {
     }
 }
 
+//void ServerGameLoop::buildAndSendSnapshot(int playerIdx) {
+//    if (playerIdx < 0 || playerIdx >= 2) return;            
+//    if (!slots[playerIdx].connected) return;                    
+//    if (!slots[playerIdx].ip.has_value()) return;
+//
+//    FrameSnapshot snap;
+//    snap.frameNumber = serverTick;
+//    snap.camX_quant = quantise(slots[playerIdx].camX);
+//    snap.camY_quant = quantise(0.f);
+//
+//    auto& known = slots[playerIdx].knownEntities;
+//    for (auto id : known) {
+//        auto it = level.entityIndex.find(id);
+//        if (it == level.entityIndex.end()) {
+//            known.erase(id);
+//            continue;
+//        }
+//		Entity* ent = level.getEntity(id);
+//        if (!ent) {
+//            known.erase(id);
+//            continue;
+//        }
+//        Entity& e = *ent;
+//        EntitySnapshot s;
+//        s.entityId = e.id;
+//        s.x_quant = quantise(e.x);
+//        s.y_quant = quantise(e.y);
+//        s.animation = e.animation;
+//        s.animStartTick = e.animStartTick;
+//        s.flags = (e.id == playerEntityId[0]) ? slots[0].facing
+//            : (e.id == playerEntityId[1]) ? slots[1].facing : 0;
+//
+//        // Health from combatant state
+//        auto combatIt = combatants.find(id);
+//        s.health = (combatIt != combatants.end()) ? combatIt->second.stats.health : 0;
+//
+//        snap.entities.push_back(s);d
+//    }
+//
+//    sf::Packet snapPacket;
+//    snapPacket << NetMsgType::FrameSnapshot << snap;
+//    udpSocket.send(snapPacket, slots[playerIdx].ip.value(), slots[playerIdx].udpPort);
+//}
+
+
 void ServerGameLoop::buildAndSendSnapshot(int playerIdx) {
+    if (playerIdx < 0 || playerIdx >= 2) return;
+    if (!slots[playerIdx].connected) return;
     if (!slots[playerIdx].ip.has_value()) return;
 
     FrameSnapshot snap;
@@ -593,15 +735,22 @@ void ServerGameLoop::buildAndSendSnapshot(int playerIdx) {
     snap.camX_quant = quantise(slots[playerIdx].camX);
     snap.camY_quant = quantise(0.f);
 
-    auto& known = slots[playerIdx].knownEntities;
-    for (auto id : known) {
+    // Copy the known set to avoid iterator invalidation
+    std::vector<uint32_t> knownCopy(slots[playerIdx].knownEntities.begin(),
+        slots[playerIdx].knownEntities.end());
+
+    for (auto id : knownCopy) {
         auto it = level.entityIndex.find(id);
         if (it == level.entityIndex.end()) {
-            known.erase(id);
+            slots[playerIdx].knownEntities.erase(id);
             continue;
         }
-
-        Entity& e = *level.getEntity(id);
+        Entity* ent = level.getEntity(id);
+        if (!ent) {
+            slots[playerIdx].knownEntities.erase(id);
+            continue;
+        }
+        Entity& e = *ent;
         EntitySnapshot s;
         s.entityId = e.id;
         s.x_quant = quantise(e.x);
@@ -611,7 +760,6 @@ void ServerGameLoop::buildAndSendSnapshot(int playerIdx) {
         s.flags = (e.id == playerEntityId[0]) ? slots[0].facing
             : (e.id == playerEntityId[1]) ? slots[1].facing : 0;
 
-        // Health from combatant state
         auto combatIt = combatants.find(id);
         s.health = (combatIt != combatants.end()) ? combatIt->second.stats.health : 0;
 
@@ -624,8 +772,11 @@ void ServerGameLoop::buildAndSendSnapshot(int playerIdx) {
 }
 
 void ServerGameLoop::processAttacks() {
+
+
     for (int i = 0; i < 2; ++i) {
         if (!slots[i].connected) continue;
+        if (playerEntityId[i] == 0xFFFFFFFF) continue;
         Entity* attacker = level.getEntity(playerEntityId[i]);
         if (!attacker) continue;
 
@@ -679,6 +830,7 @@ void ServerGameLoop::processAttacks() {
             if (serverTick - defState.lastHitTick < 18) continue;  // i-frames
 
             Entity* target = level.getEntity(targetId);
+          
             if (!target) continue;
 
             if (strikeHitsTarget(strikeBox, *target, *attacker, hot.depthTolerance)) {
@@ -736,14 +888,43 @@ void ServerGameLoop::run() {
         previousTime = now;
         accumulator += dt;
 
-        // Check for TCP disconnects
+        // Check for TCP messages and disconnects
         for (int i = 0; i < 2; ++i) {
             if (!slots[i].connected) continue;
-            char dummy[1]; std::size_t dummyRecv = 0;
-            if (slots[i].tcpSocket.receive(dummy, 0, dummyRecv)
-                == sf::Socket::Status::Disconnected) {
+
+            sf::Packet tcpPacket;
+            auto status = slots[i].tcpSocket.receive(tcpPacket);
+            if (status == sf::Socket::Status::Disconnected) {
                 printf("[Server] TCP disconnect detected for player %d\n", i);
                 disconnectPlayer(i);
+            }
+            else if (status == sf::Socket::Status::Done) {
+                NetMsgType type;
+                tcpPacket >> type;
+                if (type == NetMsgType::PlayerReady) {
+                    printf("[Server] Player %d is ready in PlayState\n", i);
+                    slots[i].readyInPlayState = true;
+
+                    // Broadcast status to all connected players
+                    bool bothReady = true;
+                    for (int j = 0; j < 2; ++j) {
+                        if (slots[j].connected && !slots[j].readyInPlayState) {
+                            bothReady = false;
+                            break;
+                        }
+                    }
+
+                    if (bothReady || playerCount == 1) {
+                        for (int j = 0; j < 2; ++j) {
+                            if (slots[j].connected) {
+                                broadcastPlayerStatus(j);
+                            }
+                        }
+                    }
+                    else {
+                        broadcastPlayerStatus(i);
+                    }
+                }
             }
         }
 
@@ -758,6 +939,12 @@ void ServerGameLoop::run() {
         while (accumulator >= TICK_TIME) {
             accumulator -= TICK_TIME;
             serverTick++;
+
+            // Process pending entity removals FIRST
+            for (uint32_t id : pendingEntityRemovals) {
+                level.removeEntity(id);
+            }
+            pendingEntityRemovals.clear();
 
             if (phase == ServerPhase::Playing) {
                 tickGameLogic();
@@ -776,7 +963,6 @@ void ServerGameLoop::run() {
         if (nextTick > now)
             sf::sleep(nextTick - now);
     }
-
 
     // Cleanup
     printf("[Server] Shutting down...\n");
@@ -827,6 +1013,21 @@ int ServerGameLoop::attackIndex(AnimType type) {
     }
 }
 
+
+CombatantState ServerGameLoop::createPlayerCombatant() {
+    CombatantState cs;
+    cs.config.baseStats = { 100, 100, 15, 2, 0.1f, 1.f, 1.f };
+    cs.stats = cs.config.baseStats;
+    cs.config.attacks = {
+        { {5}, { 170.f, 10.f, 80.f, 160.f }, 15.f, 0,  false },
+        { {4}, { 170.f, 40.f, 80.f, 130.f }, 15.f, 0,  false },
+        { {7}, { 170.f, 85.f, 80.f, 80.f },  20.f, 25, true  },
+    };
+    cs.isAlive = true;
+    return cs;
+}
+
+
 int ServerGameLoop::calculateDamage(const CombatantState& attacker, const CombatantState& defender) {
     int raw = attacker.stats.strength;
     raw -= defender.stats.defense;
@@ -875,3 +1076,177 @@ bool ServerGameLoop::strikeHitsTarget(const sf::FloatRect& strikeBox,
     return strikeBox.findIntersection(targetBox).has_value();
 }
 
+
+
+
+void ServerGameLoop::broadcastPlayerStatus(int idx) {
+    PlayerStatusMessage msg;
+    msg.playerIndex = idx;
+    msg.connected = slots[idx].connected && slots[idx].readyInPlayState;
+
+    if (msg.connected && playerEntityId[idx] != 0xFFFFFFFF) {
+        auto it = combatants.find(playerEntityId[idx]);
+        if (it != combatants.end()) {
+            msg.health = it->second.stats.health;
+            msg.maxHealth = it->second.stats.maxHealth;
+        }
+        else {
+            msg.health = 100;
+            msg.maxHealth = 100;
+        }
+    }
+    else {
+        msg.health = 100;
+        msg.maxHealth = 100;
+    }
+
+    sf::Packet p;
+    p << NetMsgType::PlayerStatus << msg;
+    for (int i = 0; i < 2; ++i)
+        if (slots[i].connected)
+            slots[i].tcpSocket.send(p);
+}
+
+void ServerGameLoop::broadcastAllPlayerStatusTo(int toIdx) {
+    if (!slots[toIdx].connected) return;
+
+    for (int i = 0; i < 2; ++i) {
+        PlayerStatusMessage msg;
+        msg.playerIndex = i;
+        msg.connected = slots[i].connected && slots[i].readyInPlayState;
+
+        if (msg.connected && playerEntityId[i] != 0xFFFFFFFF) {
+            auto it = combatants.find(playerEntityId[i]);
+            if (it != combatants.end()) {
+                msg.health = it->second.stats.health;
+                msg.maxHealth = it->second.stats.maxHealth;
+            }
+            else {
+                msg.health = 100;
+                msg.maxHealth = 100;
+            }
+        }
+        else {
+            msg.health = 100;
+            msg.maxHealth = 100;
+        }
+
+        sf::Packet p;
+        p << NetMsgType::PlayerStatus << msg;
+        slots[toIdx].tcpSocket.send(p);
+    }
+}
+
+void ServerGameLoop::acceptLateJoin() {
+    sf::TcpSocket newSocket;
+    if (listener.accept(newSocket) != sf::Socket::Status::Done) return;
+
+    int freeSlot = -1;
+    for (int i = 0; i < 2; ++i) {
+        if (!slots[i].connected) { freeSlot = i; break; }
+    }
+    if (freeSlot < 0) return;
+
+    unsigned short newUdpPort;
+    sf::Packet pkt;
+    pkt << freeSlot << static_cast<unsigned short>(UDP_PORT);
+    if (newSocket.send(pkt) != sf::Socket::Status::Done) return;
+    pkt.clear();
+    if (newSocket.receive(pkt) != sf::Socket::Status::Done) return;
+    pkt >> newUdpPort;
+
+    slots[freeSlot].tcpSocket = std::move(newSocket);
+    slots[freeSlot].tcpSocket.setBlocking(false);
+    slots[freeSlot].udpPort = newUdpPort;
+    slots[freeSlot].connected = true;
+    playerCount++;
+    printf("[Server] Late player %d joined (UDP %d)\n", freeSlot, newUdpPort);
+
+    // Wait for UDP OK
+    char okBuf[4]; std::size_t recvd;
+    std::optional<sf::IpAddress> ip; unsigned short port;
+    while (udpSocket.receive(okBuf, 3, recvd, ip, port) != sf::Socket::Status::Done
+        || std::strncmp(okBuf, "OK", 2) != 0
+        || port != newUdpPort) {
+        sf::sleep(sf::milliseconds(10));
+    }
+    slots[freeSlot].ip = ip;
+    printf("[Server] Learned endpoint for late player %d: %s:%d\n",
+        freeSlot, ip->toString().c_str(), port);
+
+    // Confirm
+    sf::Packet confirm;
+    std::string okStr = "OK";
+    confirm << okStr;
+    if (slots[freeSlot].tcpSocket.send(confirm) != sf::Socket::Status::Done) {
+        disconnectPlayer(freeSlot);
+        return;
+    }
+
+    // Initialize world if this is the first player
+    if (playerCount == 1 && phase == ServerPhase::Lobby)
+        initializeWorld();
+
+    //// Spawn the new player's entity
+    //Entity e;
+    //e.id = nextEntityId++;
+    //e.type = EntityType::Player;
+    //e.x = 700.f;
+    //e.y = 750.f;
+    //e.animation = static_cast<uint8_t>(AnimType::Idle);
+    //e.animStartTick = serverTick;
+    //e.hitbox = { 96.f, 84.f, 74.f, 80.f };
+    //level.addEntity(e);
+    //playerEntityId[freeSlot] = e.id;
+    //combatants[e.id] = createPlayerCombatant();
+    //slots[freeSlot].knownEntities.insert(e.id);
+    //slots[freeSlot].camX = e.x;
+
+    ////// Tell the new player to load the level
+    ////LoadLevelMessage levelMsg{ 1 };
+    ////sf::Packet lp;
+    ////lp << NetMsgType::LoadLevel << levelMsg;
+    ////slots[freeSlot].tcpSocket.send(lp);
+
+    //// Assign player entity
+    //sendAssignPlayerEntity(freeSlot);
+
+    //// Send all existing entities to the new player
+    //for (auto& ent : level.allEntities) {
+    //    SpawnMessage spawnMsg{ ent.id, ent.type, ent.x, ent.y, ent.animation, ent.animStartTick };
+    //    sf::Packet sp;
+    //    sp << NetMsgType::SpawnEntity << spawnMsg;
+    //    if (slots[freeSlot].tcpSocket.send(sp) != sf::Socket::Status::Done) {
+    //        disconnectPlayer(freeSlot);
+    //        return;
+    //    }
+    //}
+
+    //// Send the new player's entity to existing players
+    //SpawnMessage newPlayerMsg{ e.id, e.type, e.x, e.y, e.animation, e.animStartTick };
+    //for (int i = 0; i < 2; ++i) {
+    //    if (i != freeSlot && slots[i].connected) {
+    //        sendSpawnToPlayer(i, newPlayerMsg);
+    //        slots[i].knownEntities.insert(e.id);
+    //    }
+    //}
+
+    //// Cross-register known entities
+    //for (int i = 0; i < 2; ++i) {
+    //    if (slots[i].connected && playerEntityId[i] != 0xFFFFFFFF) {
+    //        slots[freeSlot].knownEntities.insert(playerEntityId[i]);
+    //        if (i != freeSlot) {
+    //            slots[i].knownEntities.insert(playerEntityId[freeSlot]);
+    //        }
+    //    }
+    //}
+
+    // Notify all players about connection status
+    for (int i = 0; i < 2; ++i) {
+        if (slots[i].connected) {
+            broadcastAllPlayerStatusTo(i);
+        }
+    }
+
+    printf("[Server] Late player %d fully initialized\n", freeSlot);
+}

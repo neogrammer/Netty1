@@ -18,11 +18,15 @@ public:
 
     Entity* getEntity(uint32_t id) {
         auto it = entityIndex.find(id);
-        return (it != entityIndex.end()) ? &allEntities[it->second] : nullptr;
+        if (it == entityIndex.end()) return nullptr;
+        if (it->second >= allEntities.size()) return nullptr;
+        return &allEntities[it->second];
     }
 
     // future: load from file
     void loadDefault() {
         // nothing special – entities will be added by the server
     }
+
+    void removeEntity(uint32_t id);
 };

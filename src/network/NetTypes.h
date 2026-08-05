@@ -20,9 +20,17 @@
      FrameSnapshot = 3,
      AssignPlayerEntity = 4,
      LoadLevel = 5,
-     LoadZone = 6
+     LoadZone = 6,
+     PlayerStatus = 7,
+     PlayerReady = 8,
  };
 
+ struct PlayerStatusMessage {
+     int playerIndex = 0;     // 0 or 1
+     bool connected = false;
+     int health = 100;
+     int maxHealth = 100;
+ };
 
 // ---------- Entity structures ----------
 enum class EntityType : uint8_t {
@@ -122,6 +130,10 @@ struct FrameSnapshot {
 // ---------- NetMsgType ----------
 sf::Packet& operator<<(sf::Packet& p, NetMsgType t); 
 sf::Packet& operator>>(sf::Packet& p, NetMsgType& t);
+
+sf::Packet& operator<<(sf::Packet& p, const PlayerStatusMessage& msg);
+sf::Packet& operator>>(sf::Packet& p, PlayerStatusMessage& msg);
+
 // ---------- EntityType ----------
 sf::Packet& operator<<(sf::Packet& p, EntityType t); 
 sf::Packet& operator>>(sf::Packet& p, EntityType& t); 

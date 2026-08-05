@@ -21,13 +21,22 @@ void TitleState::enter() {}
 void TitleState::exit() {}
 
 void TitleState::handleEvent(const sf::Event& event) {
-    if (event.is<sf::Event::KeyPressed>() &&
-        event.getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Enter) {
-        // Notify server we're ready (send a simple UDP "READY" string)
-        const char* ready = "READY";
-        context.udpSocket->send(ready, 5, context.serverIp, context.serverPort);
-        // The server will respond with LoadZone via TCP, which is handled centrally.
-        // After that, the central processing will switch to OverworldState automatically.
+    //if (event.is<sf::Event::KeyPressed>() &&
+    //    event.getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Enter) {
+    //    // Notify server we're ready (send a simple UDP "READY" string)
+    //    const char* ready = "READY";
+    //    context.udpSocket->send(ready, 5, context.serverIp, context.serverPort);
+    //    // The server will respond with LoadZone via TCP, which is handled centrally.
+    //    // After that, the central processing will switch to OverworldState automatically.
+    //}
+
+    if (event.is<sf::Event::KeyPressed>()) {
+        auto key = event.getIf<sf::Event::KeyPressed>()->code;
+        if (key == sf::Keyboard::Key::Enter) {
+            const char* ready = "READY";
+            context.udpSocket->send(ready, 5, context.serverIp, context.serverPort);
+            printf("[Client] Sent READY from title screen\n");
+        }
     }
 }
 

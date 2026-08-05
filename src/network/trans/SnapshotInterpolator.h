@@ -36,7 +36,7 @@ public:
 
     // Find a specific entity in the current snapshot (for flags, facing, etc.)
     const EntitySnapshot* findEntity(uint32_t entityId) const;
-
+    void reset();
 private:
     FrameSnapshot prev;
     FrameSnapshot curr;

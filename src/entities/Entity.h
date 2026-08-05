@@ -13,6 +13,7 @@ struct ClientEntity {
     float x = 0.f, y = 0.f;
     int16_t health = 100;
     int16_t maxHealth = 100;
+    EntityType entityType = EntityType::NPC;
 
     ClientEntity() = default;
     ClientEntity(const ClientEntity&) = delete;
