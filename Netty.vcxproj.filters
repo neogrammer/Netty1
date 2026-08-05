@@ -129,6 +129,24 @@
     <ClCompile Include="src\network\client\ClientNetworkProcessor.cpp">
       <Filter>Source Files\network\client</Filter>
     </ClCompile>
+    <ClCompile Include="src\entities\animation\AnimationController.cpp">
+      <Filter>Source Files\entities\animation</Filter>
+    </ClCompile>
+    <ClCompile Include="src\game_states\levels\WorldManager.cpp">
+      <Filter>Source Files\game_states\levels</Filter>
+    </ClCompile>
+    <ClCompile Include="src\network\NetworkManager.cpp">
+      <Filter>Source Files\network</Filter>
+    </ClCompile>
+    <ClCompile Include="src\entities\PlayerManager.cpp">
+      <Filter>Source Files\entities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\network\server\CombatSystem.cpp">
+      <Filter>Source Files\network\server</Filter>
+    </ClCompile>
+    <ClCompile Include="src\network\server\AnimConfig.cpp">
+      <Filter>Source Files\network\server</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\entities\Entity.h">
@@ -195,6 +213,24 @@
       <Filter>Source Files\network\server</Filter>
     </ClInclude>
     <ClInclude Include="src\network\server\Combat.h">
+      <Filter>Source Files\network\server</Filter>
+    </ClInclude>
+    <ClInclude Include="src\entities\animation\AnimationController.h">
+      <Filter>Source Files\entities\animation</Filter>
+    </ClInclude>
+    <ClInclude Include="src\game_states\levels\WorldManager.h">
+      <Filter>Source Files\game_states\levels</Filter>
+    </ClInclude>
+    <ClInclude Include="src\network\NetworkManager.h">
+      <Filter>Source Files\network</Filter>
+    </ClInclude>
+    <ClInclude Include="src\entities\PlayerManager.h">
+      <Filter>Source Files\entities</Filter>
+    </ClInclude>
+    <ClInclude Include="src\network\server\CombatSystem.h">
+      <Filter>Source Files\network\server</Filter>
+    </ClInclude>
+    <ClInclude Include="src\network\server\ServerPhase.h">
       <Filter>Source Files\network\server</Filter>
     </ClInclude>
   </ItemGroup>

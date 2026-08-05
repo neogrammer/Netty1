@@ -112,6 +112,34 @@ void PlayState::update(sf::Time dt) {
             }
         }
     }
+
+    // Update HUD health from entity data
+    for (auto& [id, ent] : entities) {
+        if (ent.entityType == EntityType::Player) {
+            // Player 0 entity ID is always the lower one assigned by server
+            // We need to know which entity maps to which HUD slot
+            // Simplest: use the entity ID mapping from context
+            if (id == context.myEntityId) {
+                // Own health
+                if (context.playerId == 0) {
+                    context.player1Health = ent.health;
+                }
+                else {
+                    context.player2Health = ent.health;
+                }
+            }
+            else {
+                // Other player's health
+                if (context.playerId == 0) {
+                    context.player2Health = ent.health;
+                }
+                else {
+                    context.player1Health = ent.health;
+                }
+            }
+        }
+    }
+
 }
 
 
