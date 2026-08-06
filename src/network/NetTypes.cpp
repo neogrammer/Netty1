@@ -49,13 +49,12 @@ sf::Packet& operator>>(sf::Packet& p, EntitySnapshot& s) {
 
 sf::Packet& operator<<(sf::Packet& p, const SpawnMessage& msg) {
     return p << msg.entityId << msg.entityType << msg.x << msg.y
-        << msg.animation << msg.animStartTick;
+        << msg.animation << msg.animStartTick << msg.maxHealth << msg.health;
 }
 sf::Packet& operator>>(sf::Packet& p, SpawnMessage& msg) {
     return p >> msg.entityId >> msg.entityType >> msg.x >> msg.y
-        >> msg.animation >> msg.animStartTick;
+        >> msg.animation >> msg.animStartTick >> msg.maxHealth >> msg.health;
 }
-
 // ---------- DestroyMessage ----------
 sf::Packet& operator<<(sf::Packet& p, const DestroyMessage& msg) {
     return p << msg.entityId;

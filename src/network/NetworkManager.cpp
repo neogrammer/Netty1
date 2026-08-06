@@ -207,7 +207,7 @@ void NetworkManager::processPlayerInput(PlayerSlot (&slots)[2], WorldManager& wo
 
                 if (playerEntityId[playerIdx] == 0xFFFFFFFF) {
                     Entity e;
-                    e.id = nextEntityId++;
+                    e.id = playerIdx;
                     e.type = EntityType::Player;
                     e.x = (playerIdx == 0) ? 100.f : 700.f;
                     e.y = 750.f;
@@ -232,7 +232,7 @@ void NetworkManager::processPlayerInput(PlayerSlot (&slots)[2], WorldManager& wo
                     }
 
                     SpawnMessage newPlayerMsg{ e.id, e.type, e.x, e.y,
-                                               e.animation, e.animStartTick };
+                                               e.animation, e.animStartTick, 100, 100 };
                     for (int i = 0; i < 2; ++i) {
                         if (i != playerIdx && slots[i].connected) {
                             sf::Packet sp;

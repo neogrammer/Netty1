@@ -29,6 +29,8 @@ struct Cfg
 
 		// Level Textures
 		L1_Foreground, L1_BgMid, L1_BgNear, L1_BgFar, L1_Ground,
+
+		GoblinSheet,
 		
 		// Overworld textures
 		Zone1_Map, Zone1_Icons,

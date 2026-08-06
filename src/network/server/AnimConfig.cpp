@@ -13,3 +13,10 @@ uint32_t animDurationTicks(AnimType type) {
     double TICK_DURATION = 1.0 / 60.0;
     return static_cast<uint32_t>(it->second.frameCount * it->second.durationPerFrame / TICK_DURATION);
 }
+
+const std::unordered_map<AnimType, AnimConfig>& getAnimTable(EntityType type)
+{
+
+    return (type == EntityType::Goblin) ? kGoblinAnims : kPlayerAnims;
+
+}

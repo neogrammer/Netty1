@@ -26,6 +26,7 @@ static std::string texturePath(Cfg::Textures id, bool isLevel = true)
         case Cfg::Textures::L1_BgMid:   return "assets/textures/levels/Level1/L1_BgMid.png";
         case Cfg::Textures::L1_BgNear:  return "assets/textures/levels/Level1/L1_BgNear.png";
         case Cfg::Textures::L1_Foreground:  return "assets/textures/levels/Level1/L1_Foreground.png";
+        case Cfg::Textures::GoblinSheet: return "assets/textures/enemies/GoblinSheet.png";
 		case Cfg::Textures::None: return "assets/textures/none.png";
             // … add all known IDs
         default: throw std::runtime_error("Unknown texture ID");
@@ -87,7 +88,8 @@ static std::unordered_set<int> requiredTextureIDs(int sceneId, bool isLevel = tr
                     (int)T::L1_BgMid,
                     (int)T::L1_BgNear,
                 (int)T::L1_Ground,
-                    (int)T::L1_Foreground };
+                    (int)T::L1_Foreground,
+             (int)T::GoblinSheet };
 		}
 		else if (sceneId == 1)
         {  // level 1
@@ -95,7 +97,8 @@ static std::unordered_set<int> requiredTextureIDs(int sceneId, bool isLevel = tr
                          (int)T::L1_BgMid,
                          (int)T::L1_BgNear,
                      (int)T::L1_Ground,
-                         (int)T::L1_Foreground };
+                         (int)T::L1_Foreground,
+             (int)T::GoblinSheet };
         }
         // … add more levels here
         else
@@ -104,7 +107,8 @@ static std::unordered_set<int> requiredTextureIDs(int sceneId, bool isLevel = tr
                                      (int)T::L1_BgMid,
                                      (int)T::L1_BgNear,
                                  (int)T::L1_Ground,
-                                     (int)T::L1_Foreground };
+                                     (int)T::L1_Foreground,
+                                     (int)T::GoblinSheet };
         }
     } 
 

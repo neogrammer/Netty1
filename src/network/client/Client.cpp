@@ -148,6 +148,7 @@
 #include <res/SceneResources.h>
 #include <res/Cfg.h>
 #include <network/client/ClientNetworkProcessor.h>
+#include <entities/animation/enemies/GoblinAnimations.h>
 
 void run_client(int server_tcp_port) {
     const sf::IpAddress server_ip(127, 0, 0, 1);
@@ -189,10 +190,8 @@ void run_client(int server_tcp_port) {
     // ---- Animation setup ----
     AnimationSet playerAnimSet;
     initPlayerAnimations(playerAnimSet);
-    std::unordered_map<EntityType, AnimationSet*> entityAnimSets = {
-        { EntityType::Player, &playerAnimSet }
-    };
 
+ 
     printf("[Client %d] Starting main loop...\n", player_id);
 
     // ---------- Client context ----------
@@ -214,8 +213,9 @@ void run_client(int server_tcp_port) {
     ctx.gsm = &gsm;
 
     gsm.registerState("title", std::make_unique<TitleState>(&window, ctx));
-    gsm.registerState("overworld", std::make_unique<OverworldState>(&window, ctx, entityAnimSets));
-    gsm.registerState("play", std::make_unique<PlayState>(&window, ctx, entityAnimSets));
+    std::unordered_map<EntityType, AnimationSet*> emptyAnimSets;
+    gsm.registerState("overworld", std::make_unique<OverworldState>(&window, ctx, emptyAnimSets));
+    gsm.registerState("play", std::make_unique<PlayState>(&window, ctx, playerAnimSet));
     gsm.switchTo("title");
 
     ClientNetworkProcessor network(ctx);

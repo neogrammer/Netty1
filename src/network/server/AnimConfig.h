@@ -28,3 +28,16 @@ extern bool animLoops(AnimType type);
 // Helper: how many ticks does this animation last?
 extern uint32_t animDurationTicks(AnimType type);
 
+const std::unordered_map<AnimType, AnimConfig> kGoblinAnims = {
+    { AnimType::Idle,     { 8, 0.12f, true  } },
+    { AnimType::Walk,     { 8, 0.08f, true  } },
+    { AnimType::Attack1,  { 8, 0.10f, false } },
+    { AnimType::Attack2,  { 8, 0.10f, false } },
+    { AnimType::Attack3,  { 8, 0.10f, false } },
+    { AnimType::JumpUp,   { 1, 0.10f, false } },
+    { AnimType::JumpDown, { 1, 0.10f, false } },
+    { AnimType::Hit,      { 8, 0.08f, false } },
+    { AnimType::Death,    { 8, 0.15f, false } },
+};
+
+extern const std::unordered_map<AnimType, AnimConfig>& getAnimTable(EntityType type);

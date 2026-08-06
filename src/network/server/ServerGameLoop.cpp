@@ -1189,6 +1189,19 @@ void ServerGameLoop::run() {
     //    }
     //}
 
+    // ADD THIS BLOCK:
+    if (phase == ServerPhase::Lobby && players.playerCount >= 1) {
+        world.initializeWorld(world.nextEntityId, serverTick, players.playerEntityId,
+            players.slots, combatants, combat);
+        phase = ServerPhase::Playing;
+        for (int i = 0; i < 2; ++i) {
+            if (players.slots[i].connected)
+                network.sendAssignPlayerEntity(i, players.slots, players.playerEntityId,
+                    players.playerCount, phase, world, combatants);
+        }
+        printf("[Server] World re-initialized after reset\n");
+    }
+
     for (int i = 0; i < 2; ++i) {
         if (players.slots[i].connected)
             network.sendAssignPlayerEntity(i, players.slots, players.playerEntityId, players.playerCount, phase, world, combatants);
@@ -1252,18 +1265,7 @@ void ServerGameLoop::run() {
                 combat, world.nextEntityId, serverTick,
                 players.playerEntityId, combatants);
 
-        // ADD THIS BLOCK:
-        if (phase == ServerPhase::Lobby && players.playerCount >= 1) {
-            world.initializeWorld(world.nextEntityId, serverTick, players.playerEntityId,
-                players.slots, combatants, combat);
-            phase = ServerPhase::Playing;
-            for (int i = 0; i < 2; ++i) {
-                if (players.slots[i].connected)
-                    network.sendAssignPlayerEntity(i, players.slots, players.playerEntityId,
-                        players.playerCount, phase, world, combatants);
-            }
-            printf("[Server] World re-initialized after reset\n");
-        }
+        
 
 
         network.processPlayerInput(players.slots, world, combat, world.nextEntityId,
@@ -1280,14 +1282,28 @@ void ServerGameLoop::run() {
                 static int tickCount = 0;
                 if (++tickCount % 60 == 0) printf("[Server] Tick loop running, phase=Playing, tick=%u\n", serverTick);
                 tickGameLogic();
-                combat.processAttacks(players.slots, players.playerEntityId,
-                    world.level, serverTick, combatants);
+                // Enemy AI
+                float pX[2] = { 0,0 }, pY[2] = { 0,0 };
+                bool pAlive[2] = { false,false };
+                for (int i = 0; i < 2; ++i) {
+                    if (players.playerEntityId[i] != 0xFFFFFFFF) {
+                        Entity* pe = world.level.getEntity(players.playerEntityId[i]);
+                        if (pe) {
+                            pX[i] = pe->x; pY[i] = pe->y;
+                            auto it = combatants.find(players.playerEntityId[i]);
+                            pAlive[i] = (it != combatants.end() && it->second.isAlive);
+                        }
+                    }
+                }
+                EnemyAIController::tickAll(world.level.allEntities, combatants, enemyAIStates, enemyFacing,
+                    serverTick, pX, pY, pAlive, EnemyFactory::getEnemyConfigs());
+
+                combat.processAttacks(players.slots, players.playerEntityId, world.level, serverTick, combatants, enemyFacing);
+
                 for (int i = 0; i < 2; ++i) {
                     if (!players.slots[i].connected || !players.slots[i].ip.has_value()) continue;
-                    world.manageEntityVisibility(i, players.slots);
-                    world.buildAndSendSnapshot(i, players.slots, serverTick,
-                        players.playerEntityId, combatants,
-                        network.udpSocket);
+                    world.manageEntityVisibility(i, players.slots, combatants);
+                    world.buildAndSendSnapshot(i, players.slots, serverTick, players.playerEntityId, combatants, network.udpSocket, enemyFacing);
                 }
             }
             else {

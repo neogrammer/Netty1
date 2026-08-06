@@ -5,10 +5,15 @@
 #include <cstring>
 #include <res/Cfg.h>
 #include <cmath>
+#include <entities/animation/enemies/GoblinAnimations.h>
+#include <network/NetTypes.h>
 
-PlayState::PlayState(sf::RenderWindow* win, ClientContext& ctx,
-    const std::unordered_map<EntityType, AnimationSet*>& animSets)
-    : window(win), context(ctx), entityAnimSets(animSets) {}
+PlayState::PlayState(sf::RenderWindow* win, ClientContext& ctx, AnimationSet& playerAnimSet)
+    : window(win), context(ctx)
+{
+    entityAnimSets[EntityType::Player] = &playerAnimSet;
+}
+
 
 void PlayState::enter() {
     interpolator.reset();
@@ -22,7 +27,7 @@ void PlayState::enter() {
     context.player2Health = 100;
     context.player2MaxHealth = 100;
 
-    levelRes.loadForScene(context.currentLevel, true);
+    loadLevel(context.currentLevel);
 
     // ... background setup unchanged ...
     background.setFarLayer(levelRes, (int)Cfg::Textures::L1_BgFar, 0.01f, true);
@@ -44,6 +49,8 @@ void PlayState::enter() {
         context.player2Health = 100;
         context.player2MaxHealth = 100;
     }
+
+   
 
     sf::Packet p;
     p << NetMsgType::PlayerReady;
@@ -67,10 +74,16 @@ void PlayState::update(sf::Time dt) {
     // Process pending spawns
     for (auto& msg : context.pendingSpawns) {
         auto [ok, ent] = createClientEntity(entityAnimSets, msg.entityType, msg.x, msg.y);
+       
         if (ok) {
+            printf("[Client] Spawned entity %u type=%d animSet=%p\n",
+                msg.entityId, (int)msg.entityType, ent.animSet);
             ent.currentAnim = static_cast<AnimType>(msg.animation);
             ent.animStartTick = msg.animStartTick;
             entities[msg.entityId] = std::move(ent);
+        }
+        else {
+            printf("[Client] FAILED to spawn entity %u type=%d\n", msg.entityId, (int)msg.entityType);
         }
     }
     context.pendingSpawns.clear();
@@ -333,4 +346,46 @@ void PlayState::draw(sf::RenderWindow& window) {
     // display the frame to the window context
     window.display();
 
+}
+
+
+void PlayState::unloadCurrentLevel() {
+    ownedAnimSets.clear();
+    entityAnimSets.clear();
+    entities.clear();
+    levelRes.clear();
+}
+
+
+void PlayState::loadLevel(int levelId) {
+    // Save player anim set pointers
+    auto player0It = entityAnimSets.find(EntityType::Player);
+    AnimationSet* player0Set = (player0It != entityAnimSets.end()) ? player0It->second : nullptr;
+
+    // Clear level-specific sets
+    ownedAnimSets.clear();
+    entityAnimSets.clear();
+
+    // Restore player
+    if (player0Set) {
+        entityAnimSets[EntityType::Player] = player0Set;
+    }
+
+    context.currentLevel = levelId;
+    levelRes.loadForScene(levelId, true);
+    setupEntityAnimSets(levelId);
+    interpolator.reset();
+}
+
+void PlayState::setupEntityAnimSets(int levelId) {
+    switch (levelId) {
+    case 1: {
+        auto goblinSet = std::make_unique<AnimationSet>();
+        sf::Texture& tex = levelRes.textures.get((int)Cfg::Textures::GoblinSheet);
+        initGoblinAnimations(*goblinSet, tex);
+        entityAnimSets[EntityType::Goblin] = goblinSet.get();
+        ownedAnimSets[EntityType::Goblin] = std::move(goblinSet);
+        break;
+    }
+    }
 }

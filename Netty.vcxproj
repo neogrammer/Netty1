@@ -147,6 +147,9 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\entities\animation\AnimationController.cpp" />
+    <ClCompile Include="src\entities\animation\enemies\GoblinAnimations.cpp" />
+    <ClCompile Include="src\entities\enemies\ai\EnemyAI.cpp" />
+    <ClCompile Include="src\entities\enemies\EnemyConfig.cpp" />
     <ClCompile Include="src\entities\Entity.cpp" />
     <ClCompile Include="src\entities\PlayerManager.cpp" />
     <ClCompile Include="src\game_states\levels\Level.cpp" />
@@ -171,6 +174,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\entities\animation\AnimationController.h" />
+    <ClInclude Include="src\entities\animation\enemies\GoblinAnimations.h" />
+    <ClInclude Include="src\entities\enemies\ai\EnemyAI.h" />
+    <ClInclude Include="src\entities\enemies\EnemyConfig.h" />
     <ClInclude Include="src\entities\Entity.h" />
     <ClInclude Include="src\entities\PlayerManager.h" />
     <ClInclude Include="src\game_states\GameState.h" />

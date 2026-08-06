@@ -27,11 +27,12 @@ public:
         uint32_t playerEntityId[2], PlayerSlot (&slots)[2],
         std::unordered_map<uint32_t, CombatantState>& combatants,
         CombatSystem& combatSystem);
-    void manageEntityVisibility(int playerIdx, PlayerSlot (&slots)[2]);
-    void buildAndSendSnapshot(int playerIdx, PlayerSlot (&slots)[2], uint32_t serverTick,
+    void manageEntityVisibility(int playerIdx, PlayerSlot (&slots)[2], std::unordered_map<uint32_t, CombatantState>& combatants);
+    void buildAndSendSnapshot(int playerIdx, PlayerSlot(&slots)[2], uint32_t serverTick,
         uint32_t playerEntityId[2],
         std::unordered_map<uint32_t, CombatantState>& combatants,
-        sf::UdpSocket& udpSocket);
+        sf::UdpSocket& udpSocket,
+        const std::unordered_map<uint32_t, int>& enemyFacing);
     void processRemovals();
 
 private:

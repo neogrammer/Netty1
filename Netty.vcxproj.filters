@@ -73,6 +73,15 @@
     <Filter Include="Resource Files\assets\textures\Ui">
       <UniqueIdentifier>{7dd2ec63-92ab-4711-8d87-9db97e1e57ce}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\entities\enemies">
+      <UniqueIdentifier>{caa1fe54-e398-4655-a340-7ed42317d606}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\entities\animation\enemies">
+      <UniqueIdentifier>{b8ca1c56-8974-4ce2-aa76-3e2cb1c772aa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\entities\enemies\ai">
+      <UniqueIdentifier>{c19fe9bb-3e36-4d47-9114-4cdc4c70d5bc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -146,6 +155,15 @@
     </ClCompile>
     <ClCompile Include="src\network\server\AnimConfig.cpp">
       <Filter>Source Files\network\server</Filter>
+    </ClCompile>
+    <ClCompile Include="src\entities\animation\enemies\GoblinAnimations.cpp">
+      <Filter>Source Files\entities\animation\enemies</Filter>
+    </ClCompile>
+    <ClCompile Include="src\entities\enemies\EnemyConfig.cpp">
+      <Filter>Source Files\entities\enemies</Filter>
+    </ClCompile>
+    <ClCompile Include="src\entities\enemies\ai\EnemyAI.cpp">
+      <Filter>Source Files\entities\enemies\ai</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -232,6 +250,15 @@
     </ClInclude>
     <ClInclude Include="src\network\server\ServerPhase.h">
       <Filter>Source Files\network\server</Filter>
+    </ClInclude>
+    <ClInclude Include="src\entities\animation\enemies\GoblinAnimations.h">
+      <Filter>Source Files\entities\animation\enemies</Filter>
+    </ClInclude>
+    <ClInclude Include="src\entities\enemies\EnemyConfig.h">
+      <Filter>Source Files\entities\enemies</Filter>
+    </ClInclude>
+    <ClInclude Include="src\entities\enemies\ai\EnemyAI.h">
+      <Filter>Source Files\entities\enemies\ai</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

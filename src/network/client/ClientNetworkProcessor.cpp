@@ -52,6 +52,7 @@ void ClientNetworkProcessor::handleTcpMessage(sf::Packet& packet) {
         SpawnMessage msg;
         packet >> msg;
         ctx.pendingSpawns.push_back(msg);
+        printf("[Client] TCP SpawnEntity: id=%u type=%d\n", msg.entityId, (int)msg.entityType);
         break;
     }
     case NetMsgType::DestroyEntity: {

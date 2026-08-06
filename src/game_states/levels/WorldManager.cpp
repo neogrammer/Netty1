@@ -2,6 +2,7 @@
 #include <network/server/ServerGameLoop.h>
 #include <network/server/CombatSystem.h>
 #include <cstdio>
+#include <entities/enemies/EnemyConfig.h>
 
 void WorldManager::resetWorld(uint32_t& serverTick, uint32_t playerEntityId[2], PlayerSlot (&slots)[2],
     std::unordered_map<uint32_t, CombatantState>& combatants) {
@@ -22,9 +23,13 @@ void WorldManager::resetWorld(uint32_t& serverTick, uint32_t playerEntityId[2], 
 }
 
 void WorldManager::initializeWorld(uint32_t& nextEntityIdRef, uint32_t serverTick,
-    uint32_t playerEntityId[2], PlayerSlot (&slots)[2],
+    uint32_t playerEntityId[2], PlayerSlot(&slots)[2],
     std::unordered_map<uint32_t, CombatantState>& combatants,
     CombatSystem& combatSystem) {
+
+    // Start IDs at 0, reserve 0 and 1 for players
+    nextEntityIdRef = 0;
+
     auto spawn = [&](float x, float y, uint8_t anim, EntityType etype) -> uint32_t {
         Entity e;
         e.id = nextEntityIdRef++;
@@ -32,10 +37,19 @@ void WorldManager::initializeWorld(uint32_t& nextEntityIdRef, uint32_t serverTic
         e.x = x; e.y = y;
         e.animation = anim;
         e.animStartTick = serverTick;
-        e.hitbox = { 96.f, 84.f, 74.f, 80.f };
+        // Get hitbox from config
+        if (etype == EntityType::Player) {
+            e.hitbox = { 96.f, 84.f, 74.f, 80.f };
+        }
+        else {
+            auto& configs = EnemyFactory::getEnemyConfigs();
+            auto it = configs.find(etype);
+            e.hitbox = (it != configs.end()) ? it->second.hitbox : Hitbox{ 0, 0, 0, 0 };
+        }
         level.addEntity(e);
-
-        SpawnMessage msg{ e.id, e.type, e.x, e.y, e.animation, e.animStartTick };
+        int16_t maxHp = (etype == EntityType::Goblin) ? 60 : 100;
+        SpawnMessage msg{ e.id, e.type, e.x, e.y, e.animation, e.animStartTick, maxHp, maxHp };
+        
         sf::Packet sp;
         sp << NetMsgType::SpawnEntity << msg;
         for (int i = 0; i < 2; ++i)
@@ -50,12 +64,18 @@ void WorldManager::initializeWorld(uint32_t& nextEntityIdRef, uint32_t serverTic
         slots[0].knownEntities.insert(playerEntityId[0]);
         slots[0].camX = 100.f;
     }
+    else {
+        nextEntityIdRef++; // Skip ID 0 if player 0 not connected
+    }
 
     if (slots[1].connected) {
         playerEntityId[1] = spawn(700.f, 750.f, 0, EntityType::Player);
         combatants[playerEntityId[1]] = combatSystem.createPlayerCombatant();
         slots[1].knownEntities.insert(playerEntityId[1]);
         slots[1].camX = 700.f;
+    }
+    else {
+        nextEntityIdRef++; // Skip ID 1 if player 1 not connected
     }
 
     for (int i = 0; i < 2; ++i) {
@@ -66,11 +86,18 @@ void WorldManager::initializeWorld(uint32_t& nextEntityIdRef, uint32_t serverTic
         }
     }
 
+    // Goblins start at ID 2 (or next available after reserved slots)
+// To this:
+    for (float x : {2400.f, 2800.f, 3200.f}) {
+        uint32_t gobId = spawn(x, 560.f, (uint8_t)AnimType::Idle, EntityType::Goblin);
+        combatants[gobId] = EnemyFactory::createGoblinCombatant();
+    }
+
     this->nextEntityId = nextEntityIdRef;
     printf("[Server] World initialized.\n");
 }
 
-void WorldManager::manageEntityVisibility(int playerIdx, PlayerSlot (&slots)[2]) {
+void WorldManager::manageEntityVisibility(int playerIdx, PlayerSlot (&slots)[2], std::unordered_map<uint32_t, CombatantState>& combatants) {
     if (playerIdx < 0 || playerIdx >= 2) return;
     if (!slots[playerIdx].connected) return;
     auto& known = slots[playerIdx].knownEntities;
@@ -106,8 +133,11 @@ void WorldManager::manageEntityVisibility(int playerIdx, PlayerSlot (&slots)[2])
     for (auto id : toSpawn) {
         Entity* ent = level.getEntity(id);
         if (!ent) { known.erase(id); continue; }
+        int16_t maxHp = (ent->type == EntityType::Player) ? 100 : EnemyFactory::getMaxHealth(ent->type);
+        auto combatIt = combatants.find(ent->id);
+        int16_t hp = (combatIt != combatants.end()) ? combatIt->second.stats.health : maxHp;
         sendSpawnToPlayer(playerIdx,
-            { ent->id, ent->type, ent->x, ent->y, ent->animation, ent->animStartTick }, slots);
+            { ent->id, ent->type, ent->x, ent->y, ent->animation, ent->animStartTick, maxHp, hp }, slots);
     }
     for (auto id : toDestroy) {
         sendDestroyToPlayer(playerIdx, { id }, slots);
@@ -117,7 +147,8 @@ void WorldManager::manageEntityVisibility(int playerIdx, PlayerSlot (&slots)[2])
 void WorldManager::buildAndSendSnapshot(int playerIdx, PlayerSlot (&slots)[2], uint32_t serverTick,
     uint32_t playerEntityId[2],
     std::unordered_map<uint32_t, CombatantState>& combatants,
-    sf::UdpSocket& udpSocket) {
+    sf::UdpSocket& udpSocket,
+    const std::unordered_map<uint32_t, int>& enemyFacing) {
     if (playerIdx < 0 || playerIdx >= 2) return;
     if (!slots[playerIdx].connected) return;
     if (!slots[playerIdx].ip.has_value()) return;
@@ -149,7 +180,11 @@ void WorldManager::buildAndSendSnapshot(int playerIdx, PlayerSlot (&slots)[2], u
         s.animation = e.animation;
         s.animStartTick = e.animStartTick;
         s.flags = (e.id == playerEntityId[0]) ? slots[0].facing
-            : (e.id == playerEntityId[1]) ? slots[1].facing : 0;
+            : (e.id == playerEntityId[1]) ? slots[1].facing
+            : [&]() -> uint8_t {
+            auto it = enemyFacing.find(e.id);
+            return (it != enemyFacing.end()) ? (uint8_t)it->second : 1;
+            }();
 
         auto combatIt = combatants.find(id);
         s.health = (combatIt != combatants.end()) ? combatIt->second.stats.health : 0;

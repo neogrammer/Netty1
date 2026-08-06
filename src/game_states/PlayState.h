@@ -14,19 +14,19 @@
 #include <game_states/levels/ParallaxBackground.h>
 #include <network/trans/SnapshotInterpolator.h>
 
-#include <res/SceneResources.h>
-#include <entities/animation/AnimationSet.h>
+
 
 class PlayState : public IGameState {
 public:
-    PlayState(sf::RenderWindow* win, ClientContext& ctx,
-        const std::unordered_map<EntityType, AnimationSet*>& animSets);
+    PlayState(sf::RenderWindow* win, ClientContext& ctx, AnimationSet& playerAnimSet);
         
     void enter() override;
     void exit() override;
     void handleEvent(const sf::Event&) override;
     void update(sf::Time dt) override;
     void draw(sf::RenderWindow& window) override;
+    void loadLevel(int levelId);
+
 
 	
 private:
@@ -38,11 +38,18 @@ private:
     sf::Vector2f prevCameraCenter{ 0.f, 450.f };
     sf::Vector2f currCameraCenter{ 0.f, 450.f };
     float lastPrintedY = 0.f;
-    const std::unordered_map<EntityType, AnimationSet*>& entityAnimSets;
+
+    AnimationSet goblinAnimSet;
+
+    std::unordered_map<EntityType, std::unique_ptr<AnimationSet>> ownedAnimSets;
+    std::unordered_map<EntityType, AnimationSet*> entityAnimSets;
     SceneResources levelRes;
     // Entity state
     std::unordered_map<uint32_t, ClientEntity> entities;
   
     const sf::Time tickDuration = sf::seconds(1.f / 60.f);
+
+    void unloadCurrentLevel();
+    void setupEntityAnimSets(int levelId);
 
 };

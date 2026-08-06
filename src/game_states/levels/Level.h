@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <res/SceneResources.h>
+#include <entities/animation/AnimationSet.h>
 
 class Level {
 public:
@@ -29,4 +31,8 @@ public:
     }
 
     void removeEntity(uint32_t id);
+
+    // Load animation sets for all entity types used in this level
+    void loadEntityAnimSets(int levelId, SceneResources& levelRes,
+        std::unordered_map<EntityType, AnimationSet*>& animSets);
 };

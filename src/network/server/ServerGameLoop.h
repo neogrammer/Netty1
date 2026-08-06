@@ -131,6 +131,7 @@
 #include <entities/animation/AnimationController.h>
 #include <network/server/CombatSystem.h>
 #include <network/server/ServerPhase.h>
+#include <entities/enemies/ai/EnemyAI.h>
 
 class ServerGameLoop {
 public:
@@ -161,6 +162,9 @@ private:
     ServerPhase phase = ServerPhase::Lobby;
     uint32_t serverTick = 0;
     std::atomic<bool> running{ true };
+
+    std::unordered_map<uint32_t, EnemyAIState> enemyAIStates;
+    std::unordered_map<uint32_t, int> enemyFacing;
 
     void tickGameLogic();
     void updateCamera(PlayerSlot& slot, Entity& entity, int idx);

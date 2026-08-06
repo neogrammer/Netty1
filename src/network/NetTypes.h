@@ -67,6 +67,15 @@ struct EntitySnapshot {
     int16_t health;
 };
 
+namespace std {
+    template<>
+    struct hash<EntityType> {
+        size_t operator()(EntityType t) const {
+            return hash<uint8_t>()(static_cast<uint8_t>(t));
+        }
+    };
+}
+
 struct LoadLevelMessage {
     uint32_t levelNumber;
     float worldLeft, worldRight, worldTop, worldBottom;
