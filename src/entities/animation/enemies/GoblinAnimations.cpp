@@ -3,7 +3,7 @@
 #include <network/NetTypes.h>
 
 void initGoblinAnimations(AnimationSet& animSet, sf::Texture& sheet) {
-    const int FRAME_W = 200, FRAME_H = 225;
+    const int FRAME_W = 100, FRAME_H = 112;
 
     auto buildRow = [&](int row, AnimType type, int frameCount) {
         std::vector<sf::IntRect> right, left;

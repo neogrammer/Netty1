@@ -202,40 +202,53 @@ void PlayState::draw(sf::RenderWindow& window) {
 
         ent.sprite->setPosition({ std::round(ent.x - cameraOffset.x), std::round(ent.y - cameraOffset.y) });
 
-        // --- Debug: strike box (matches server getStrikeBox) ---
-        if (id == context.myEntityId && ent.currentAnim >= AnimType::Attack1 && ent.currentAnim <= AnimType::Attack3) {
-            int idx = static_cast<int>(ent.currentAnim) - static_cast<int>(AnimType::Attack1);
+     // --- Debug: strike box ---
+        if (ent.currentAnim >= AnimType::Attack1 && ent.currentAnim <= AnimType::Attack3) {
+    int idx = static_cast<int>(ent.currentAnim) - static_cast<int>(AnimType::Attack1);
 
-            float sbOffX[3] = { 170.f, 170.f, 170.f };
-            float sbOffY[3] = { 10.f, 40.f, 85.f };
-            float sbW[3] = { 80.f, 80.f, 80.f };
-            float sbH[3] = { 160.f, 130.f, 80.f };
+    float sbOffX[3] = { 0.f, 0.f, 0.f };
+    float sbOffY[3] = { 0.f, 0.f, 0.f };
+    float sbW[3]    = { 0.f, 0.f, 0.f };
+    float sbH[3]    = { 0.f, 0.f, 0.f };
+    
+    float bodyCenterX = 0.f;
+    
+    if (ent.entityType == EntityType::Player) {
+        sbOffX[0] = 170.f; sbOffX[1] = 170.f; sbOffX[2] = 170.f;
+        sbOffY[0] = 10.f;  sbOffY[1] = 40.f;  sbOffY[2] = 85.f;
+        sbW[0]    = 80.f;  sbW[1]    = 80.f;  sbW[2]    = 80.f;
+        sbH[0]    = 160.f; sbH[1]    = 130.f; sbH[2]    = 80.f;
+        bodyCenterX = ent.x + 96.f + 74.f / 2.f;
+    }
+    else if (ent.entityType == EntityType::Goblin) {
+        sbOffX[0] = 70.f; sbOffX[1] = 70.f; sbOffX[2] = 70.f;
+        sbOffY[0] = 25.f;  sbOffY[1] = 25.f;  sbOffY[2] = 25.f;
+        sbW[0]    = 35.f;  sbW[1]    = 35.f;  sbW[2]    = 35.f;
+        sbH[0]    = 60.f;  sbH[1]    = 60.f; sbH[2]    = 60.f;
+        bodyCenterX = ent.x + 14.f + 58.f / 2.f;  // half-sized hitbox
+    }
 
-            uint8_t facing = 0;
-            if (auto* snapEnt = interpolator.findEntity(id)) facing = snapEnt->flags & 1;
+    uint8_t facing = 0;
+    if (auto* snapEnt = interpolator.findEntity(id)) facing = snapEnt->flags & 1;
 
-            // Same logic as server getStrikeBox()
-            float bodyCenterX = ent.x + 96.f + 74.f / 2.f;  // hitbox offsetX + width/2
-            float sbx, sby = ent.y + sbOffY[idx];
+    float sby = ent.y + sbOffY[idx];
+    float sbx;
+    if (facing == 1) {
+        sbx = ent.x + sbOffX[idx];
+    }
+    else {
+        float distFromCenter = sbOffX[idx] - (bodyCenterX - ent.x);
+        sbx = bodyCenterX - distFromCenter - sbW[idx];
+    }
 
-            if (facing == 1) {
-                sbx = ent.x + sbOffX[idx];
-            }
-            else {
-                float distFromCenter = sbOffX[idx] - 96.f - 74.f / 2.f;
-                sbx = bodyCenterX - distFromCenter - sbW[idx];
-            }
-
-            sf::RectangleShape debugBox({ sbW[idx], sbH[idx] });
-            debugBox.setPosition({ std::round(sbx - cameraOffset.x), std::round(sby - cameraOffset.y) });
-            debugBox.setFillColor(sf::Color(255, 0, 0, 100));
-            // After computing the animation frame...
-            printf("[Client] Anim=%d, frame=%d, tick=%u\n",
-                (int)ent.currentAnim, frameIdx, ent.animStartTick);
-            window.draw(debugBox);
-        }
+    sf::RectangleShape debugBox({ sbW[idx], sbH[idx] });
+    debugBox.setPosition({ std::round(sbx - cameraOffset.x), std::round(sby - cameraOffset.y) });
+    debugBox.setFillColor(sf::Color(255, 0, 0, 100));
+    window.draw(debugBox);
+}
 
         // --- Debug: body hitbox ---
+		if (ent.entityType == EntityType::Player)
         {
             // Player hitbox hardcoded for debug (match server: offset 48,42 size 37,40)
             float hbOffX = 96.f;
@@ -253,18 +266,55 @@ void PlayState::draw(sf::RenderWindow& window) {
             bodyBox.setOutlineThickness(1.f);
             window.draw(bodyBox);
         }
+        else if (ent.entityType == EntityType::Goblin)
+        {
+            // Goblin hitbox hardcoded for debug (match server: offset 28,14 size 14,71)
+            float hbOffX = 23.f;
+            float hbOffY = 14.f;
+            float hbW = 57.f;
+            float hbH = 71.f;
+
+            sf::RectangleShape bodyBox({ hbW, hbH });
+            bodyBox.setPosition({
+                std::round(ent.x + hbOffX - cameraOffset.x),
+                std::round(ent.y + hbOffY - cameraOffset.y)
+                });
+            bodyBox.setFillColor(sf::Color(0, 255, 0, 80));   // green, semi-transparent
+            bodyBox.setOutlineColor(sf::Color(0, 255, 0, 120));
+            bodyBox.setOutlineThickness(1.f);
+            window.draw(bodyBox);
+        }
+
+
 
         // --- Debug: feet position ---
         {
             
             sf::RectangleShape feetMarker({ 6.f, 4.f });
-            float feetY = ent.y + 84.f + 80.f;  // offsetY + height
-            feetMarker.setPosition({
-                std::round(ent.x + 96.f + 37.f - cameraOffset.x),  // offX + width/2
-                std::round(feetY - cameraOffset.y)
-                });
-            feetMarker.setFillColor(sf::Color(255, 255, 0, 200));  // yellow
-            window.draw(feetMarker);
+            if (ent.entityType == EntityType::Player)
+            {
+                float feetY = ent.y + 84.f + 80.f;  // offsetY + height
+                feetMarker.setPosition({
+                    std::round(ent.x + 96.f + 37.f - cameraOffset.x),  // offX + width/2
+                    std::round(feetY - cameraOffset.y)
+                    });
+                feetMarker.setFillColor(sf::Color(255, 255, 0, 200));  // yellow
+
+                window.draw(feetMarker);
+            }
+			else if (ent.entityType == EntityType::Goblin)
+			{
+				float feetY = ent.y + 14.f + 71.f;  // offsetY + height
+				feetMarker.setPosition({
+					std::round(ent.x + 28.f + 14.f - cameraOffset.x),  // offX + width/2
+					std::round(feetY - cameraOffset.y)
+					});
+				feetMarker.setFillColor(sf::Color(255, 255, 0, 200));  // magenta
+
+                window.draw(feetMarker);
+			}
+			
+          
         }
 
         window.draw(*ent.sprite);
@@ -275,10 +325,19 @@ void PlayState::draw(sf::RenderWindow& window) {
             float barHeight = 5.f;
             float healthPercent = (float)ent.health / ent.maxHealth;
 
-            sf::Vector2f barPos = {
-                std::round(ent.x - cameraOffset.x + 96.f + 37.f - barWidth / 2.f),  // centered above hitbox
-                std::round(ent.y - cameraOffset.y - 10.f)                           // above sprite
-            };
+            sf::Vector2f barPos{};
+            if (ent.entityType == EntityType::Player) {
+                barPos = {
+                    std::round(ent.x - cameraOffset.x + 96.f + 37.f - barWidth / 2.f),  // centered above hitbox
+                    std::round(ent.y - cameraOffset.y - 10.f)                           // above sprite
+                };
+            }
+			else if (ent.entityType == EntityType::Goblin) {
+				barPos = {
+					std::round(ent.x - cameraOffset.x + 28.f + 14.f - barWidth / 2.f),  // centered above hitbox
+					std::round(ent.y - cameraOffset.y - 10.f)                           // above sprite
+				};
+			}
 
             // Background (dark red)
             sf::RectangleShape bgBar({ barWidth, barHeight });

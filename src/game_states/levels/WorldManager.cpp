@@ -89,7 +89,7 @@ void WorldManager::initializeWorld(uint32_t& nextEntityIdRef, uint32_t serverTic
     // Goblins start at ID 2 (or next available after reserved slots)
 // To this:
     for (float x : {2400.f, 2800.f, 3200.f}) {
-        uint32_t gobId = spawn(x, 560.f, (uint8_t)AnimType::Idle, EntityType::Goblin);
+        uint32_t gobId = spawn(x, 649.f, (uint8_t)AnimType::Idle, EntityType::Goblin);
         combatants[gobId] = EnemyFactory::createGoblinCombatant();
     }
 
